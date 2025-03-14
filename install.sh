@@ -70,13 +70,15 @@ sudo apt-get install -y --no-install-recommends \
     libpcre2-dev \
     liblua5.1-0-dev \
     libpcre2-posix3 \
-    zlib1g-dev
+    zlib1g-dev \
+    wget
 
 
 
 BUILD_DIR=$(mktemp -d)
-#cd "$BUILD_DIR"
 cd "$BUILD_DIR"
+
+
 
 # Nginx and its modules
 # https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
@@ -98,7 +100,7 @@ curl -fsSL https://github.com/openresty/stream-lua-nginx-module/archive/${VER_OP
 git clone https://github.com/owasp-modsecurity/ModSecurity-nginx
 #git clone https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
 
-# Build LuaJIT ,target_dir=/usr/local/share/lua/5.1/
+# Build LuaJIT 
 cd luajit2-${VER_LUAJIT}
 make -j$(nproc)
 sudo make install
@@ -213,9 +215,31 @@ install_lua_component "openresty/lua-resty-signal" "v$VER_OPENRESTY_SIGNAL" "lib
 install_lua_component "openresty/lua-resty-websocket" "v$VER_OPENRESTY_WEBSOCKET" "lib/resty"
 install_lua_component "openresty/lua-tablepool" "v$VER_OPENRESTY_TABLEPOOL" "lib/"
 
-sudo groupadd --system --gid 101 nginx
-sudo useradd --system --gid nginx --no-create-home \
-    --home /nonexistent --shell /bin/false --uid 101 nginx
+# sudo groupadd --system --gid 101 nginx
+# sudo useradd --system --gid nginx --no-create-home \
+#     --home /nonexistent --shell /bin/false --uid 101 nginx
+
+# Create nginx group if not exists
+if ! getent group nginx >/dev/null; then
+    sudo groupadd --system --gid 101 nginx || 
+        sudo groupadd --system nginx
+fi
+
+if ! getent passwd nginx >/dev/null; then
+    sudo useradd --system \
+        --gid nginx \
+        --no-create-home \
+        --home /nonexistent \
+        --shell /bin/false \
+        --uid 101 nginx || 
+            sudo useradd --system \
+                --gid nginx \
+                --no-create-home \
+                --home /nonexistent \
+                --shell /bin/false nginx 
+fi
+
+
 sudo mkdir -p /var/cache/nginx /var/log/nginx
 sudo chown -R nginx:nginx /var/cache/nginx /var/log/nginx
 
@@ -240,6 +264,7 @@ echo "Setting up ModSecurity base configuration..."
 cp -f $BUILD_DIR/ModSecurity/unicode.mapping "$NGINX_DIR"
 cp -f $BUILD_DIR/ModSecurity/modsecurity.conf-recommended "$MODSEC_CONF"
 
+
 if [[ ! -d "$CRS_DIR" ]]; then
     echo "Cloning OWASP Core Rule Set..."
     git clone -q https://github.com/coreruleset/coreruleset.git "$CRS_DIR"
@@ -256,38 +281,194 @@ if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
     sed -i '1i# OWASP CRS Rules\nInclude coreruleset/crs-setup.conf\nInclude coreruleset/rules/*.conf\n' "$MODSEC_CONF"
 fi
 
-echo "Updating Nginx configuration..."
-if ! grep -q "modsecurity on" "$CONFIG_FILE"; then
-    awk '
-    /^[[:space:]]*server[[:space:]]*{/ {
-        server_block=1
-        print
-        next
+# Creating Virtual host
+sudo mkdir -p /etc/nginx/sites-{available,enabled}
+# Add to your existing nginx.conf modification section
+sed -i '/http {/a \    include sites-enabled/*.conf;' /etc/nginx/nginx.conf
+
+DEFAULT_VHOST="/etc/nginx/sites-available/default.conf"
+
+sudo tee "$DEFAULT_VHOST" <<'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    # Your existing ModSecurity and Lua configurations
+    modsecurity on;
+    modsecurity_rules_file /etc/nginx/modsecurity.conf;
+
+    # Lua test endpoints
+    location /admin {
+        content_by_lua_block {
+            local auth = ngx.var.http_authorization
+            if not auth or auth ~= "Basic " .. ngx.encode_base64("admin:password") then
+                ngx.header["WWW-Authenticate"] = 'Basic realm="Restricted"'
+                ngx.exit(ngx.HTTP_UNAUTHORIZED)
+            end
+            ngx.say("Access granted!")
+        }
     }
-    server_block && /listen[[:space:]]*80/ && !modsec_added {
-        print $0
-        print "        modsecurity on;"
-        print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
-        modsec_added=1
-        next
+
+    location /api {
+        default_type application/json;
+        content_by_lua_block {
+            local cjson = require("cjson")
+            local data = { message = "Hello, Lua!", timestamp = os.time() }
+            ngx.say(cjson.encode(data))
+        }
     }
-    /}/ && server_block {
-        server_block=0
+
+    location /lua_security_test {
+        content_by_lua_block {
+            local bad_patterns = { "script", "SELECT", "UNION" }
+            local query = ngx.var.query_string or ""
+            for _, pattern in ipairs(bad_patterns) do
+                if string.find(query, pattern, 1, true) then
+                    ngx.exit(ngx.HTTP_FORBIDDEN)
+                end
+            end
+            ngx.say("Query is safe!")
+        }
     }
-    { print }
-    ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-    echo "Added ModSecurity directives to port 80 server block"
-else
-    echo "ModSecurity directives already present in configuration"
-fi
+
+    location /say_hello_lua {
+        content_by_lua_block {
+                ngx.say("Hello from lua-nginx-module!")
+            }
+    }
+
+
+    location /lua_log_test {
+        content_by_lua_block {
+            local file = io.open("/var/log/nginx/lua_requests.log", "a")
+            if file then
+                file:write(os.date() .. " - " .. ngx.var.remote_addr .. " accessed " .. ngx.var.request_uri .. "\n")
+                file:close()
+            end
+            ngx.say("Logged your request!")
+        }
+    }
+
+    # Add other locations and configurations here
+}
+EOF
+
+sudo ln -sf "$DEFAULT_VHOST" /etc/nginx/sites-enabled/default.conf
+
+# echo "Updating Nginx configuration..."
+# if ! grep -q "modsecurity on" "$CONFIG_FILE" || ! grep -q "location /admin" "$CONFIG_FILE"; then
+#     awk '
+#     BEGIN {
+#         modsec_added = 0
+#         lua_added = 0
+#     }
+#     /^[[:space:]]*server[[:space:]]*{/ {
+#         server_block = 1
+#         print
+#         next
+#     }
+#     server_block && /listen[[:space:]]*80/ && !modsec_added {
+#         # Add ModSecurity directives
+#         print $0
+#         print "        modsecurity on;"
+#         print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
+#         modsec_added = 1
+#         next
+#     }
+#     server_block && modsec_added && !lua_added {
+#         # Add Lua test locations after ModSecurity
+#         print "        # Lua test endpoints"
+#         print "        location /admin {"
+#         print "            content_by_lua_block {"
+#         print "                local auth = ngx.var.http_authorization"
+#         print "                if not auth or auth ~= \"Basic \" .. ngx.encode_base64(\"admin:password\") then"
+#         print "                    ngx.header[\"WWW-Authenticate\"] = \"Basic realm=\\\"Restricted\\\"\""
+#         print "                    ngx.exit(ngx.HTTP_UNAUTHORIZED)"
+#         print "                end"
+#         print "                ngx.say(\"Access granted!\")"
+#         print "            }"
+#         print "        }"
+#         print ""
+#         print "        location /api {"
+#         print "            default_type application/json;"
+#         print "            content_by_lua_block {"
+#         print "                local cjson = require(\"cjson\")"
+#         print "                local data = { message = \"Hello, Lua!\", timestamp = os.time() }"
+#         print "                ngx.say(cjson.encode(data))"
+#         print "            }"
+#         print "        }"
+#         print ""
+#         print "        location /lua_security_test {"
+#         print "            content_by_lua_block {"
+#         print "                local bad_patterns = { \"script\", \"SELECT\", \"UNION\" }"
+#         print "                local query = ngx.var.query_string or \"\""
+#         print "                for _, pattern in ipairs(bad_patterns) do"
+#         print "                    if string.find(query, pattern, 1, true) then"
+#         print "                        ngx.exit(ngx.HTTP_FORBIDDEN)"
+#         print "                    end"
+#         print "                end"
+#         print "                ngx.say(\"Query is safe!\")"
+#         print "            }"
+#         print "        }"
+#         print ""
+#         print "        location /lua_log_test {"
+#         print "            content_by_lua_block {"
+#         print "                local file = io.open(\"/var/log/nginx/lua_requests.log\", \"a\")"
+#         print "                if file then"
+#         print "                    file:write(os.date() .. \" - \" .. ngx.var.remote_addr .. \" accessed \" .. ngx.var.request_uri .. \"\\n\")"
+#         print "                    file:close()"
+#         print "                end"
+#         print "                ngx.say(\"Logged your request!\")"
+#         print "            }"
+#         print "        }"
+#         lua_added = 1
+#     }
+#     /}/ && server_block {
+#         server_block = 0
+#     }
+#     { print }
+#     ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    
+#     echo "Added ModSecurity and Lua test directives to port 80 server block"
+# else
+#     echo "ModSecurity and Lua configurations already present"
+# fi
+
+
+# echo "Updating Nginx configuration..."
+# if ! grep -q "modsecurity on" "$CONFIG_FILE"; then
+#     awk '
+#     /^[[:space:]]*server[[:space:]]*{/ {
+#         server_block=1
+#         print
+#         next
+#     }
+#     server_block && /listen[[:space:]]*80/ && !modsec_added {
+#         print $0
+#         print "        modsecurity on;"
+#         print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
+#         modsec_added=1
+#         next
+#     }
+#     /}/ && server_block {
+#         server_block=0
+#     }
+#     { print }
+#     ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+#     echo "Added ModSecurity directives to port 80 server block"
+# else
+#     echo "ModSecurity directives already present in configuration"
+# fi
 
 echo "Checking port 80 availability..."
 if ss -tulnp | grep -q ":80 "; then
-    echo "ERROR: Port 80 is already in use. Free the port before continuing."
+    echo "ERROR: Port 80 is already in use."
     exit 1
 fi
 
 echo "Testing Nginx configuration..."
+nginx
 nginx -t
 
 echo "Reloading Nginx..."
@@ -296,24 +477,29 @@ nginx -s reload
 echo "SUCCESS: ModSecurity configuration complete!"
 
 
-sudo apt-get autoremove -y
-sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
+# Test endpoints
+curl -v http://localhost/admin
+curl -v http://localhost/api
+curl -v "http://localhost/lua_security_test?input=<script>"
+
+#sudo apt-get autoremove -y
+#sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
 ## install nginx-ultimate-bad-bot-blocker
 
-# curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker
-# cd /usr/local/sbin
-# sudo ./install-ngxblocker
-# sudo ./install-ngxblocker -x
-# sudo chmod +x /usr/local/sbin/setup-ngxblocker
-# sudo chmod +x /usr/local/sbin/update-ngxblocker
-# cd /usr/local/sbin/
-# sudo ./setup-ngxblocker -x -e conf
 
-# # Bad Bot Blocker
-#include /etc/nginx/bots.d/ddos.conf;
-#include /etc/nginx/bots.d/blockbots.conf;
-#load_module /etc/nginx/modules-enabled/ngx_http_modsecurity_module.so;
+# Install Bad Bot Blocker
+echo "Installing nginx-ultimate-bad-bot-blocker..."
+curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /tmp/install-ngxblocker
+sudo mv /tmp/install-ngxblocker /usr/local/sbin/
+sudo chmod +x /usr/local/sbin/install-ngxblocker
+
+sudo /usr/local/sbin/install-ngxblocker -x
+sudo chmod +x /usr/local/sbin/setup-ngxblocker
+sudo chmod +x /usr/local/sbin/update-ngxblocker
+
+# Configure bot blocker
+sudo /usr/local/sbin/setup-ngxblocker -x -e conf
 
 
 
