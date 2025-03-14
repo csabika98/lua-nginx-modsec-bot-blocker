@@ -481,6 +481,7 @@ echo "SUCCESS: ModSecurity configuration complete!"
 curl -v http://localhost/admin
 curl -v http://localhost/api
 curl -v "http://localhost/lua_security_test?input=<script>"
+curl -v "http://localhost/say_hello_lua"
 
 #sudo apt-get autoremove -y
 #sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
