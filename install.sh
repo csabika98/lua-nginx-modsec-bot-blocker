@@ -105,7 +105,7 @@ sudo make install
 sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 cd ..
 
- Install Modsecurity
+# Install Modsecurity
 git clone https://github.com/owasp-modsecurity/ModSecurity.git
 cd ModSecurity
 git submodule init
