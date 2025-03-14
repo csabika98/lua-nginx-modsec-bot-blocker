@@ -1,5 +1,39 @@
 #!/bin/bash
-set -euxo pipefail
+#set -euxo pipefail
+
+# Version selection prompt
+echo "----------------------------------------"
+echo "1. Latest version of Nginx (current: 1.27.4)"
+echo "2. Custom version"
+read -p "Choose Nginx version [1-2]: " nginx_choice
+
+case $nginx_choice in
+    2)
+        read -p "Enter custom Nginx version (e.g., 1.27.4): " custom_version
+        export VER_NGINX=$custom_version
+        echo "Using custom Nginx version: $VER_NGINX"
+        ;;
+    *)
+        export VER_NGINX=1.27.4
+        echo "Using latest Nginx version: $VER_NGINX"
+        ;;
+esac
+
+# Bad Bot Blocker installation prompt
+echo "----------------------------------------"
+read -p "Do you want to install the Bad Bot Blocker? (y/n): " install_bot_blocker
+case $install_bot_blocker in
+    [Yy]* )
+        INSTALL_BOT_BLOCKER=true
+        echo "Bad Bot Blocker will be installed"
+        ;;
+    * )
+        INSTALL_BOT_BLOCKER=false
+        echo "Skipping Bad Bot Blocker installation"
+        ;;
+esac
+
+
 
 export VER_NGINX=1.27.4
 export VER_NGX_DEVEL_KIT=0.3.4
@@ -381,154 +415,54 @@ EOF
 
 sudo ln -sf "$DEFAULT_VHOST" /etc/nginx/sites-enabled/default.conf
 
-# echo "Updating Nginx configuration..."
-# if ! grep -q "modsecurity on" "$CONFIG_FILE" || ! grep -q "location /admin" "$CONFIG_FILE"; then
-#     awk '
-#     BEGIN {
-#         modsec_added = 0
-#         lua_added = 0
-#     }
-#     /^[[:space:]]*server[[:space:]]*{/ {
-#         server_block = 1
-#         print
-#         next
-#     }
-#     server_block && /listen[[:space:]]*80/ && !modsec_added {
-#         # Add ModSecurity directives
-#         print $0
-#         print "        modsecurity on;"
-#         print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
-#         modsec_added = 1
-#         next
-#     }
-#     server_block && modsec_added && !lua_added {
-#         # Add Lua test locations after ModSecurity
-#         print "        # Lua test endpoints"
-#         print "        location /admin {"
-#         print "            content_by_lua_block {"
-#         print "                local auth = ngx.var.http_authorization"
-#         print "                if not auth or auth ~= \"Basic \" .. ngx.encode_base64(\"admin:password\") then"
-#         print "                    ngx.header[\"WWW-Authenticate\"] = \"Basic realm=\\\"Restricted\\\"\""
-#         print "                    ngx.exit(ngx.HTTP_UNAUTHORIZED)"
-#         print "                end"
-#         print "                ngx.say(\"Access granted!\")"
-#         print "            }"
-#         print "        }"
-#         print ""
-#         print "        location /api {"
-#         print "            default_type application/json;"
-#         print "            content_by_lua_block {"
-#         print "                local cjson = require(\"cjson\")"
-#         print "                local data = { message = \"Hello, Lua!\", timestamp = os.time() }"
-#         print "                ngx.say(cjson.encode(data))"
-#         print "            }"
-#         print "        }"
-#         print ""
-#         print "        location /lua_security_test {"
-#         print "            content_by_lua_block {"
-#         print "                local bad_patterns = { \"script\", \"SELECT\", \"UNION\" }"
-#         print "                local query = ngx.var.query_string or \"\""
-#         print "                for _, pattern in ipairs(bad_patterns) do"
-#         print "                    if string.find(query, pattern, 1, true) then"
-#         print "                        ngx.exit(ngx.HTTP_FORBIDDEN)"
-#         print "                    end"
-#         print "                end"
-#         print "                ngx.say(\"Query is safe!\")"
-#         print "            }"
-#         print "        }"
-#         print ""
-#         print "        location /lua_log_test {"
-#         print "            content_by_lua_block {"
-#         print "                local file = io.open(\"/var/log/nginx/lua_requests.log\", \"a\")"
-#         print "                if file then"
-#         print "                    file:write(os.date() .. \" - \" .. ngx.var.remote_addr .. \" accessed \" .. ngx.var.request_uri .. \"\\n\")"
-#         print "                    file:close()"
-#         print "                end"
-#         print "                ngx.say(\"Logged your request!\")"
-#         print "            }"
-#         print "        }"
-#         lua_added = 1
-#     }
-#     /}/ && server_block {
-#         server_block = 0
-#     }
-#     { print }
-#     ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-    
-#     echo "Added ModSecurity and Lua test directives to port 80 server block"
-# else
-#     echo "ModSecurity and Lua configurations already present"
-# fi
 
 
-# echo "Updating Nginx configuration..."
-# if ! grep -q "modsecurity on" "$CONFIG_FILE"; then
-#     awk '
-#     /^[[:space:]]*server[[:space:]]*{/ {
-#         server_block=1
-#         print
-#         next
-#     }
-#     server_block && /listen[[:space:]]*80/ && !modsec_added {
-#         print $0
-#         print "        modsecurity on;"
-#         print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
-#         modsec_added=1
-#         next
-#     }
-#     /}/ && server_block {
-#         server_block=0
-#     }
-#     { print }
-#     ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-#     echo "Added ModSecurity directives to port 80 server block"
-# else
-#     echo "ModSecurity directives already present in configuration"
-# fi
 
-#sudo apt-get autoremove -y
-#sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
+if $INSTALL_BOT_BLOCKER; then
+    echo "----------------------------------------"
+    echo "Installing Bad Bot Blocker..."
+    ## install nginx-ultimate-bad-bot-blocker
 
-## install nginx-ultimate-bad-bot-blocker
+    # Install Bad Bot Blocker
+    echo "Installing nginx-ultimate-bad-bot-blocker..."
+    curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /tmp/install-ngxblocker
+    sudo mv /tmp/install-ngxblocker /usr/local/sbin/
+    sudo chmod +x /usr/local/sbin/install-ngxblocker
 
+    sudo /usr/local/sbin/install-ngxblocker -x
+    sudo chmod +x /usr/local/sbin/setup-ngxblocker
+    sudo chmod +x /usr/local/sbin/update-ngxblocker
 
-# Install Bad Bot Blocker
-echo "Installing nginx-ultimate-bad-bot-blocker..."
-curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /tmp/install-ngxblocker
-sudo mv /tmp/install-ngxblocker /usr/local/sbin/
-sudo chmod +x /usr/local/sbin/install-ngxblocker
+    # Configure bot blocker
+    #sudo /usr/local/sbin/setup-ngxblocker -x -e conf
+    sudo /usr/local/sbin/setup-ngxblocker -x -n default.conf -e conf
 
-sudo /usr/local/sbin/install-ngxblocker -x
-sudo chmod +x /usr/local/sbin/setup-ngxblocker
-sudo chmod +x /usr/local/sbin/update-ngxblocker
+    # Edit nginx.conf to remove duplicate bot blocker includes
+    # sudo sed -i '/include \/etc\/nginx\/conf.d\/botblocker-nginx-settings.conf;/d' /etc/nginx/nginx.conf
+    # sudo sed -i '/include \/etc\/nginx\/conf.d\/globalblacklist.conf;/d' /etc/nginx/nginx.conf
 
-# Configure bot blocker
-#sudo /usr/local/sbin/setup-ngxblocker -x -e conf
-sudo /usr/local/sbin/setup-ngxblocker -x -n default.conf -e conf
+    # Set cron for Bad Bot Blocker
+    #sudo crontab -e
+    #00 */8 * * * sudo /usr/local/sbin/update-ngxblocker -n
 
-# Edit nginx.conf to remove duplicate bot blocker includes
-# sudo sed -i '/include \/etc\/nginx\/conf.d\/botblocker-nginx-settings.conf;/d' /etc/nginx/nginx.conf
-# sudo sed -i '/include \/etc\/nginx\/conf.d\/globalblacklist.conf;/d' /etc/nginx/nginx.conf
+    # starting cron
+    sudo service cron start
 
-# Set cron for Bad Bot Blocker
-#sudo crontab -e
-#00 */8 * * * sudo /usr/local/sbin/update-ngxblocker -n
+    # For script running as root
+    echo "Setting up root cron job for bot blocker..."
+    if ! sudo crontab -l 2>/dev/null | grep -q "update-ngxblocker"; then
+        (sudo crontab -l 2>/dev/null; echo "0 */8 * * * /usr/local/sbin/update-ngxblocker -n") | sudo crontab -
+        echo "Added root cron job for bot blocker updates"
+    else
+        echo "Bot blocker cron job already exists in root crontab"
+    fi
 
-# starting cront
-sudo service cron start
-# For script running as root
-echo "Setting up root cron job for bot blocker..."
-if ! sudo crontab -l 2>/dev/null | grep -q "update-ngxblocker"; then
-    (sudo crontab -l 2>/dev/null; echo "0 */8 * * * /usr/local/sbin/update-ngxblocker -n") | sudo crontab -
-    echo "Added root cron job for bot blocker updates"
-else
-    echo "Bot blocker cron job already exists in root crontab"
+    #checking
+    crontab -l
 fi
 
-#checking
-crontab -l
 
-cho "Checking port 80 availability..."
+echo "Checking port 80 availability..."
 if ss -tulnp | grep -q ":80 "; then
     echo "ERROR: Port 80 is already in use."
     exit 1
@@ -549,4 +483,12 @@ curl -v http://localhost/admin
 curl -v http://localhost/api
 curl -v "http://localhost/lua_security_test?input=<script>"
 curl -v "http://localhost/say_hello_lua"
-curl -A "Xenu Link Sleuth" -I http://localhost
+
+if $INSTALL_BOT_BLOCKER; then
+    echo "Testing Bad Bot Blocker..."
+    curl -A "Xenu Link Sleuth" -I http://localhost
+fi
+
+
+sudo apt-get autoremove -y
+sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
