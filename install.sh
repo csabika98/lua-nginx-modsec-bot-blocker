@@ -73,9 +73,9 @@ sudo apt-get install -y --no-install-recommends \
 
 
 
-#BUILD_DIR=$(mktemp -d)
-#cd "$BUILD_DIR"
-cd "/home/csabasallai/build"
+BUILD_DIR=$(mktemp -d)
+cd "$BUILD_DIR"
+#cd "/home/csabasallai/build"
 
 # Nginx and its modules
 # https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
@@ -118,7 +118,6 @@ make -j$(nproc)
 sudo make install
 
 cd ..
-
 
 
 cd nginx-${VER_NGINX}
@@ -225,12 +224,9 @@ sudo apt-get install -y --no-install-recommends \
     libssl-dev \
     zlib1g-dev
 
-#sudo apt-get autoremove -y
-#sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
 # Fixing unicode mapping issue
 cp $BUILD_DIR/ModSecurity/unicode.mapping /etc/nginx/
-
 
 
 NGINX_DIR="/etc/nginx"
@@ -305,5 +301,9 @@ fi
 #load_module /etc/nginx/modules-enabled/ngx_http_modsecurity_module.so;
 sudo nginx
 sudo nginx -t && sudo nginx -s reload
+
+sudo apt-get autoremove -y
+sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
+
 
 echo "Installation completed successfully!"
