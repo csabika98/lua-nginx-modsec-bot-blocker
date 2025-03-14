@@ -65,6 +65,7 @@ sudo apt-get install -y --no-install-recommends \
     libyajl-dev \
     doxygen \
     libpcre3-dev \
+    iproute2 \
     libpcre2-16-0 \
     libpcre2-dev \
     liblua5.1-0-dev \
@@ -74,8 +75,8 @@ sudo apt-get install -y --no-install-recommends \
 
 
 BUILD_DIR=$(mktemp -d)
+#cd "$BUILD_DIR"
 cd "$BUILD_DIR"
-#cd "/home/csabasallai/build"
 
 # Nginx and its modules
 # https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
@@ -104,7 +105,7 @@ sudo make install
 sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 cd ..
 
-# Install Modsecurity
+ Install Modsecurity
 git clone https://github.com/owasp-modsecurity/ModSecurity.git
 cd ModSecurity
 git submodule init
@@ -225,71 +226,78 @@ sudo apt-get install -y --no-install-recommends \
     zlib1g-dev
 
 
-
-MODSECURITY_CONFIG="modsecurity on;\n        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
 NGINX_DIR="/etc/nginx"
 CRS_DIR="$NGINX_DIR/coreruleset"
 CONFIG_FILE="$NGINX_DIR/nginx.conf"
 MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
 
-# Fixing unicode mapping issue
-cp -r $BUILD_DIR/ModSecurity/unicode.mapping $NGINX_DIR
-cp -r $BUILD_DIR/ModSecurity/modsecurity.conf-recommended $MODSEC_CONF
-
-
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root!" 
+   echo "ERROR: This script must be run as root!" 
    exit 1
 fi
 
-cd "$NGINX_DIR" || { echo "Failed to enter $NGINX_DIR"; exit 1; }
+echo "Setting up ModSecurity base configuration..."
+cp -f $BUILD_DIR/ModSecurity/unicode.mapping "$NGINX_DIR"
+cp -f $BUILD_DIR/ModSecurity/modsecurity.conf-recommended "$MODSEC_CONF"
 
 if [[ ! -d "$CRS_DIR" ]]; then
     echo "Cloning OWASP Core Rule Set..."
-    git clone https://github.com/coreruleset/coreruleset.git "$CRS_DIR"
+    git clone -q https://github.com/coreruleset/coreruleset.git "$CRS_DIR"
 else
-    echo "Core Rule Set already exists, updating..."
-    cd "$CRS_DIR" && git pull origin main
+    echo "Updating existing Core Rule Set..."
+    (cd "$CRS_DIR" && git pull -q origin main)
+fi
+cp -f "$CRS_DIR/crs-setup.conf.example" "$CRS_DIR/crs-setup.conf"
+
+echo "Configuring $MODSEC_CONF..."
+sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' "$MODSEC_CONF"
+
+if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
+    sed -i '1i# OWASP CRS Rules\nInclude coreruleset/crs-setup.conf\nInclude coreruleset/rules/*.conf\n' "$MODSEC_CONF"
 fi
 
-mv $CRS_DIR/crs-setup.conf.example $CRS_DIR/crs-setup.conf
+echo "Updating Nginx configuration..."
+if ! grep -q "modsecurity on" "$CONFIG_FILE"; then
+    awk '
+    /^[[:space:]]*server[[:space:]]*{/ {
+        server_block=1
+        print
+        next
+    }
+    server_block && /listen[[:space:]]*80/ && !modsec_added {
+        print $0
+        print "        modsecurity on;"
+        print "        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
+        modsec_added=1
+        next
+    }
+    /}/ && server_block {
+        server_block=0
+    }
+    { print }
+    ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    echo "Added ModSecurity directives to port 80 server block"
+else
+    echo "ModSecurity directives already present in configuration"
+fi
 
-if [[ ! -f "$MODSEC_CONF" ]]; then
-    echo "ModSecurity configuration file not found at $MODSEC_CONF"
+echo "Checking port 80 availability..."
+if ss -tulnp | grep -q ":80 "; then
+    echo "ERROR: Port 80 is already in use. Free the port before continuing."
     exit 1
 fi
 
-if grep -q "SecRuleEngine DetectionOnly" "$MODSEC_CONF"; then
-    echo "Updating SecRuleEngine to On..."
-    sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' "$MODSEC_CONF"
-else
-    echo "SecRuleEngine already set to On or not found."
-fi
+echo "Testing Nginx configuration..."
+nginx -t
 
-if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
-    echo "Adding CRS Includes to the top of modsecurity.conf..."
-    TMP_FILE=$(mktemp)
-    {
-        echo "# Include OWASP CRS Rules"
-        echo "Include coreruleset/crs-setup.conf"
-        echo "Include coreruleset/rules/*.conf"
-        echo ""
-        cat "$MODSEC_CONF"
-    } > "$TMP_FILE"
-    mv "$TMP_FILE" "$MODSEC_CONF"
-else
-    echo "CRS Includes already present at the top of modsecurity.conf."
-fi
+echo "Reloading Nginx..."
+nginx -s reload
+
+echo "SUCCESS: ModSecurity configuration complete!"
 
 
-cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
-
-if ! grep -q "modsecurity on;" "$CONFIG_FILE"; then
-    sed -i "/server {/a \        $MODSECURITY_CONFIG" "$CONFIG_FILE"
-    echo "ModSecurity configuration added."
-else
-    echo "ModSecurity configuration already exists."
-fi
+sudo apt-get autoremove -y
+sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
 ## install nginx-ultimate-bad-bot-blocker
 
@@ -306,11 +314,6 @@ fi
 #include /etc/nginx/bots.d/ddos.conf;
 #include /etc/nginx/bots.d/blockbots.conf;
 #load_module /etc/nginx/modules-enabled/ngx_http_modsecurity_module.so;
-sudo nginx
-sudo nginx -t && sudo nginx -s reload
-
-sudo apt-get autoremove -y
-sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
 
-echo "Installation completed successfully!"
+
