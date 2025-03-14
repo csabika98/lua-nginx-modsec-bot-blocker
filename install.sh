@@ -499,7 +499,7 @@ sudo chmod +x /usr/local/sbin/setup-ngxblocker
 sudo chmod +x /usr/local/sbin/update-ngxblocker
 
 # Configure bot blocker
-sudo /usr/local/sbin/setup-ngxblocker -x -e conf
-
+#sudo /usr/local/sbin/setup-ngxblocker -x -e conf
+sudo /usr/local/sbin/setup-ngxblocker -x -n default.conf -e conf
 
 
