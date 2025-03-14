@@ -225,16 +225,16 @@ sudo apt-get install -y --no-install-recommends \
     zlib1g-dev
 
 
-# Fixing unicode mapping issue
-cp -r $BUILD_DIR/ModSecurity/unicode.mapping /etc/nginx/
-cp -r $BUILD_DIR/ModSecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf
-
 
 MODSECURITY_CONFIG="modsecurity on;\n        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
 NGINX_DIR="/etc/nginx"
 CRS_DIR="$NGINX_DIR/coreruleset"
 CONFIG_FILE="$NGINX_DIR/nginx.conf"
 MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
+
+# Fixing unicode mapping issue
+cp -r $BUILD_DIR/ModSecurity/unicode.mapping $NGINX_DIR
+cp -r $BUILD_DIR/ModSecurity/modsecurity.conf-recommended $MODSEC_CONF
 
 
 if [[ $EUID -ne 0 ]]; then
