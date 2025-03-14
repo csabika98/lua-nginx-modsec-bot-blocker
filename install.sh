@@ -37,6 +37,7 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    sudo \
     g++ \
     libmaxminddb-dev \
     libpcre3-dev \
@@ -49,11 +50,32 @@ sudo apt-get install -y --no-install-recommends \
     zlib1g-dev \
     git \
     gnupg2 \
-    gettext-base
+    gettext-base \
+    gcc \
+    build-essential \
+    autoconf \
+    automake \
+    libtool \
+    libcurl4-openssl-dev \
+    libfuzzy-dev \
+    ssdeep \
+    gettext \
+    pkg-config \
+    libgeoip-dev \
+    libyajl-dev \
+    doxygen \
+    libpcre3-dev \
+    libpcre2-16-0 \
+    libpcre2-dev \
+    liblua5.1-0-dev \
+    libpcre2-posix3 \
+    zlib1g-dev
 
-BUILD_DIR=$(mktemp -d)
-cd "$BUILD_DIR"
 
+
+#BUILD_DIR=$(mktemp -d)
+#cd "$BUILD_DIR"
+cd "/home/csabasallai/build"
 
 # Nginx and its modules
 # https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
@@ -72,12 +94,32 @@ curl -fsSL https://github.com/nginx/njs/archive/${VER_NJS}.tar.gz | tar -xz
 curl -fsSL https://github.com/openresty/set-misc-nginx-module/archive/v${VER_MISC_NGINX}.tar.gz | tar -xz
 curl -fsSL https://github.com/openresty/stream-lua-nginx-module/archive/${VER_OPENRESTY_STREAMLUA}.tar.gz | tar -xz
 
-# Build LuaJIT
+git clone https://github.com/owasp-modsecurity/ModSecurity-nginx
+#git clone https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
+
+# Build LuaJIT ,target_dir=/usr/local/share/lua/5.1/
 cd luajit2-${VER_LUAJIT}
 make -j$(nproc)
 sudo make install
 sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 cd ..
+
+# Install Modsecurity
+git clone https://github.com/owasp-modsecurity/ModSecurity.git
+cd ModSecurity
+git submodule init
+git submodule update --init
+./build.sh
+./configure \
+    --with-lua=/usr/local \
+    --with-lua-include=/usr/local/include/luajit-2.1 \
+    --with-lua-lib=/usr/local/lib
+make -j$(nproc)
+sudo make install
+
+cd ..
+
+
 
 cd nginx-${VER_NGINX}
 
@@ -134,7 +176,8 @@ export LD_LIBRARY_PATH=${LUAJIT_LIB}:${LD_LIBRARY_PATH:-}
     --add-module=../ngx_http_geoip2_module-${VER_GEOIP} \
     --add-module=../njs-${VER_NJS}/nginx \
     --add-module=../set-misc-nginx-module-${VER_MISC_NGINX} \
-    --add-module=../stream-lua-nginx-module-${VER_OPENRESTY_STREAMLUA}
+    --add-module=../stream-lua-nginx-module-${VER_OPENRESTY_STREAMLUA} \
+    --add-module=../ModSecurity-nginx
 
 make -j$(nproc)
 sudo make install
@@ -182,13 +225,31 @@ sudo apt-get install -y --no-install-recommends \
     libssl-dev \
     zlib1g-dev
 
-sudo apt-get autoremove -y
-sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
+#sudo apt-get autoremove -y
+#sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
 sudo nginx -v
 sudo nginx -t
 luajit -v
 lua -v
 luarocks --version
+
+## install nginx-ultimate-bad-bot-blocker
+
+# curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker
+# cd /usr/local/sbin
+# sudo ./install-ngxblocker
+# sudo ./install-ngxblocker -x
+# sudo chmod +x /usr/local/sbin/setup-ngxblocker
+# sudo chmod +x /usr/local/sbin/update-ngxblocker
+# cd /usr/local/sbin/
+# sudo ./setup-ngxblocker -x -e conf
+
+# # Bad Bot Blocker
+#include /etc/nginx/bots.d/ddos.conf;
+#include /etc/nginx/bots.d/blockbots.conf;
+#load_module /etc/nginx/modules-enabled/ngx_http_modsecurity_module.so;
+
+sudo nginx -t && sudo nginx -s reload
 
 echo "Installation completed successfully!"
