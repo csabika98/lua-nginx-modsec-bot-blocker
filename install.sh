@@ -71,7 +71,9 @@ sudo apt-get install -y --no-install-recommends \
     liblua5.1-0-dev \
     libpcre2-posix3 \
     zlib1g-dev \
-    wget
+    wget \
+    dnsutils \
+    cron
 
 
 
@@ -281,8 +283,27 @@ if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
     sed -i '1i# OWASP CRS Rules\nInclude coreruleset/crs-setup.conf\nInclude coreruleset/rules/*.conf\n' "$MODSEC_CONF"
 fi
 
+# Creating & overwriting a simplier config
+sudo tee /etc/nginx/nginx.conf <<'EOF'
+#user  nobody;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
+}
+EOF
+
+
 # Creating Virtual host
 sudo mkdir -p /etc/nginx/sites-{available,enabled}
+mkdir -p /var/www/
 # Add to your existing nginx.conf modification section
 sed -i '/http {/a \    include sites-enabled/*.conf;' /etc/nginx/nginx.conf
 
@@ -293,6 +314,10 @@ server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
+
+    # Bot Blocker
+    include /etc/nginx/bots.d/blockbots.conf;
+    include /etc/nginx/bots.d/ddos.conf;
 
     # Your existing ModSecurity and Lua configurations
     modsecurity on;
@@ -461,28 +486,6 @@ sudo ln -sf "$DEFAULT_VHOST" /etc/nginx/sites-enabled/default.conf
 #     echo "ModSecurity directives already present in configuration"
 # fi
 
-echo "Checking port 80 availability..."
-if ss -tulnp | grep -q ":80 "; then
-    echo "ERROR: Port 80 is already in use."
-    exit 1
-fi
-
-echo "Testing Nginx configuration..."
-nginx
-nginx -t
-
-echo "Reloading Nginx..."
-nginx -s reload
-
-echo "SUCCESS: ModSecurity configuration complete!"
-
-
-# Test endpoints
-curl -v http://localhost/admin
-curl -v http://localhost/api
-curl -v "http://localhost/lua_security_test?input=<script>"
-curl -v "http://localhost/say_hello_lua"
-
 #sudo apt-get autoremove -y
 #sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
@@ -503,4 +506,47 @@ sudo chmod +x /usr/local/sbin/update-ngxblocker
 #sudo /usr/local/sbin/setup-ngxblocker -x -e conf
 sudo /usr/local/sbin/setup-ngxblocker -x -n default.conf -e conf
 
+# Edit nginx.conf to remove duplicate bot blocker includes
+# sudo sed -i '/include \/etc\/nginx\/conf.d\/botblocker-nginx-settings.conf;/d' /etc/nginx/nginx.conf
+# sudo sed -i '/include \/etc\/nginx\/conf.d\/globalblacklist.conf;/d' /etc/nginx/nginx.conf
 
+# Set cron for Bad Bot Blocker
+#sudo crontab -e
+#00 */8 * * * sudo /usr/local/sbin/update-ngxblocker -n
+
+# starting cront
+sudo service cron start
+# For script running as root
+echo "Setting up root cron job for bot blocker..."
+if ! sudo crontab -l 2>/dev/null | grep -q "update-ngxblocker"; then
+    (sudo crontab -l 2>/dev/null; echo "0 */8 * * * /usr/local/sbin/update-ngxblocker -n") | sudo crontab -
+    echo "Added root cron job for bot blocker updates"
+else
+    echo "Bot blocker cron job already exists in root crontab"
+fi
+
+#checking
+crontab -l
+
+cho "Checking port 80 availability..."
+if ss -tulnp | grep -q ":80 "; then
+    echo "ERROR: Port 80 is already in use."
+    exit 1
+fi
+
+echo "Testing Nginx configuration..."
+nginx
+nginx -t
+
+echo "Reloading Nginx..."
+nginx -s reload
+
+echo "SUCCESS: ModSecurity configuration complete!"
+
+
+# Test endpoints
+curl -v http://localhost/admin
+curl -v http://localhost/api
+curl -v "http://localhost/lua_security_test?input=<script>"
+curl -v "http://localhost/say_hello_lua"
+curl -A "Xenu Link Sleuth" -I http://localhost
