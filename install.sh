@@ -226,20 +226,16 @@ sudo apt-get install -y --no-install-recommends \
 
 
 # Fixing unicode mapping issue
-cp $BUILD_DIR/ModSecurity/unicode.mapping /etc/nginx/
+cp -r $BUILD_DIR/ModSecurity/unicode.mapping /etc/nginx/
+cp -r $BUILD_DIR/ModSecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf
 
 
+MODSECURITY_CONFIG="modsecurity on;\n        modsecurity_rules_file /etc/nginx/modsecurity.conf;"
 NGINX_DIR="/etc/nginx"
 CRS_DIR="$NGINX_DIR/coreruleset"
+CONFIG_FILE="$NGINX_DIR/nginx.conf"
 MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
 
-
-cd $BUILD_DIR/ModSecurity
-cp -r modsecurity.conf-recommended /etc/nginx/modsecurity.conf
-
-NGINX_DIR="/etc/nginx"
-CRS_DIR="$NGINX_DIR/coreruleset"
-MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
 
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root!" 
@@ -255,6 +251,8 @@ else
     echo "Core Rule Set already exists, updating..."
     cd "$CRS_DIR" && git pull origin main
 fi
+
+mv $CRS_DIR/crs-setup.conf.example $CRS_DIR/crs-setup.conf
 
 if [[ ! -f "$MODSEC_CONF" ]]; then
     echo "ModSecurity configuration file not found at $MODSEC_CONF"
@@ -283,6 +281,15 @@ else
     echo "CRS Includes already present at the top of modsecurity.conf."
 fi
 
+
+cp "$CONFIG_FILE" "$CONFIG_FILE.bak"
+
+if ! grep -q "modsecurity on;" "$CONFIG_FILE"; then
+    sed -i "/server {/a \        $MODSECURITY_CONFIG" "$CONFIG_FILE"
+    echo "ModSecurity configuration added."
+else
+    echo "ModSecurity configuration already exists."
+fi
 
 ## install nginx-ultimate-bad-bot-blocker
 
