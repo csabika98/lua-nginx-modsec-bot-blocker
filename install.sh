@@ -228,11 +228,65 @@ sudo apt-get install -y --no-install-recommends \
 #sudo apt-get autoremove -y
 #sudo rm -rf /var/lib/apt/lists/* "$BUILD_DIR"
 
-sudo nginx -v
-sudo nginx -t
-luajit -v
-lua -v
-luarocks --version
+# Fixing unicode mapping issue
+cp $BUILD_DIR/ModSecurity/unicode.mapping /etc/nginx/
+
+
+
+NGINX_DIR="/etc/nginx"
+CRS_DIR="$NGINX_DIR/coreruleset"
+MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
+
+
+cd $BUILD_DIR/ModSecurity
+cp -r modsecurity.conf-recommended /etc/nginx/modsecurity.conf
+
+NGINX_DIR="/etc/nginx"
+CRS_DIR="$NGINX_DIR/coreruleset"
+MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
+
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root!" 
+   exit 1
+fi
+
+cd "$NGINX_DIR" || { echo "Failed to enter $NGINX_DIR"; exit 1; }
+
+if [[ ! -d "$CRS_DIR" ]]; then
+    echo "Cloning OWASP Core Rule Set..."
+    git clone https://github.com/coreruleset/coreruleset.git "$CRS_DIR"
+else
+    echo "Core Rule Set already exists, updating..."
+    cd "$CRS_DIR" && git pull origin main
+fi
+
+if [[ ! -f "$MODSEC_CONF" ]]; then
+    echo "ModSecurity configuration file not found at $MODSEC_CONF"
+    exit 1
+fi
+
+if grep -q "SecRuleEngine DetectionOnly" "$MODSEC_CONF"; then
+    echo "Updating SecRuleEngine to On..."
+    sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' "$MODSEC_CONF"
+else
+    echo "SecRuleEngine already set to On or not found."
+fi
+
+if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
+    echo "Adding CRS Includes to the top of modsecurity.conf..."
+    TMP_FILE=$(mktemp)
+    {
+        echo "# Include OWASP CRS Rules"
+        echo "Include coreruleset/crs-setup.conf"
+        echo "Include coreruleset/rules/*.conf"
+        echo ""
+        cat "$MODSEC_CONF"
+    } > "$TMP_FILE"
+    mv "$TMP_FILE" "$MODSEC_CONF"
+else
+    echo "CRS Includes already present at the top of modsecurity.conf."
+fi
+
 
 ## install nginx-ultimate-bad-bot-blocker
 
@@ -249,7 +303,7 @@ luarocks --version
 #include /etc/nginx/bots.d/ddos.conf;
 #include /etc/nginx/bots.d/blockbots.conf;
 #load_module /etc/nginx/modules-enabled/ngx_http_modsecurity_module.so;
-
+sudo nginx
 sudo nginx -t && sudo nginx -s reload
 
 echo "Installation completed successfully!"
