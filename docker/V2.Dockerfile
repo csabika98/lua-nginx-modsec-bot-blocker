@@ -161,7 +161,6 @@ COPY --from=builder /usr/local /usr/local
 COPY --from=builder /etc/nginx /etc/nginx
 COPY --from=builder /usr/sbin/nginx /usr/sbin/
 COPY --from=builder /var/log/nginx /var/log/
-COPY --from=builder /run/nginx.pid /run/
 #COPY --from=builder /var/cache/nginx /var/cache/nginx
 COPY --from=builder /etc/nginx/coreruleset /etc/nginx/coreruleset
 COPY modsecurity.conf-recommended /usr/local/modsecurity/
