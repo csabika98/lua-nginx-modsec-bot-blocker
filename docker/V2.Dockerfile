@@ -136,8 +136,12 @@ COPY unicode.mapping /usr/local/modsecurity/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libmaxminddb0 libpcre3 git libssl3 zlib1g libxml2 sudo libxslt1.1 \
-    libgeoip1 libyajl2 liblua5.1-0 && \
+    ca-certificates curl g++ libmaxminddb-dev libpcre3-dev \
+    libssl-dev libxml2-dev libxslt1-dev make patch unzip zlib1g-dev \
+    git gnupg2 gettext-base gcc build-essential autoconf automake \
+    libtool libcurl4-openssl-dev libfuzzy-dev ssdeep gettext pkg-config \
+    libgeoip-dev libyajl-dev libpcre2-dev liblua5.1-0-dev \
+    wget && \
     rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 101 nginx && \
