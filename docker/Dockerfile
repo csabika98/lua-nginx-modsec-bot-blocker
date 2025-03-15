@@ -70,11 +70,12 @@ RUN cd ModSecurity && \
     git submodule init && \
     git submodule update && \
     ./build.sh && \
-    ./configure --with-lua=/usr/local && \
+    ./configure --with-lua=/usr/local \
     --with-lua-include=/usr/local/include/luajit-2.1 \
-    --with-lua-lib=/usr/local/lib \
+    --with-lua-lib=/usr/local/lib && \
     make -j$(nproc) && \
     make install
+
 
 
 RUN export LUAJIT_LIB=/usr/local/lib
