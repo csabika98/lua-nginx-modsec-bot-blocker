@@ -129,7 +129,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /etc/nginx /etc/nginx
-COPY --from=builder /var/cache/nginx /var/cache/nginx
+#COPY --from=builder /var/cache/nginx /var/cache/nginx
 COPY --from=builder /etc/nginx/coreruleset /etc/nginx/coreruleset
 
 RUN apt-get update && \
