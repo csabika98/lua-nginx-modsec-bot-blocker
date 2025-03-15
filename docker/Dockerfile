@@ -21,6 +21,12 @@ ENV VER_OPENRESTY_SHELL=0.03
 ENV VER_OPENRESTY_SIGNAL=0.04
 ENV VER_OPENRESTY_WEBSOCKET=0.13
 ENV VER_OPENRESTY_STREAMLUA=35071d983042b6820427d2312c143a13a137b2ea
+ENV VER_CLOUDFLARE_COOKIE=f418d77082eaef48331302e84330488fdc810ef4
+ENV VER_OPENRESTY_TABLEPOOL=0.03
+ENV VER_LUA_UPSTREAM=0.07
+ENV VER_PROMETHEUS=0.20240525
+ENV VER_MISC_NGINX=0.33
+
 
 WORKDIR /build
 
@@ -40,21 +46,16 @@ RUN curl -fsSL https://nginx.org/download/nginx-${VER_NGINX}.tar.gz | tar -xz &&
     curl -fsSL https://github.com/vision5/ngx_devel_kit/archive/v${VER_NGX_DEVEL_KIT}.tar.gz | tar -xz && \
     curl -fsSL https://github.com/openresty/lua-nginx-module/archive/v${VER_LUA_NGINX_MODULE}.tar.gz | tar -xz && \
     curl -fsSL https://github.com/openresty/headers-more-nginx-module/archive/v${VER_OPENRESTY_HEADERS}.tar.gz | tar -xz && \
+    curl -fsSL https://github.com/openresty/lua-upstream-nginx-module/archive/v${VER_LUA_UPSTREAM}.tar.gz | tar -xz && \
     curl -fsSL https://github.com/leev/ngx_http_geoip2_module/archive/${VER_GEOIP}.tar.gz | tar -xz && \
     curl -fsSL https://github.com/nginx/njs/archive/${VER_NJS}.tar.gz | tar -xz && \
+    curl -fsSL https://github.com/openresty/set-misc-nginx-module/archive/v${VER_MISC_NGINX}.tar.gz | tar -xz && \
     curl -fsSL https://github.com/openresty/stream-lua-nginx-module/archive/${VER_OPENRESTY_STREAMLUA}.tar.gz | tar -xz && \
     git clone https://github.com/owasp-modsecurity/ModSecurity-nginx && \
     git clone https://github.com/owasp-modsecurity/ModSecurity && \
     git clone https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
 
-RUN cd ModSecurity && \
-    git submodule init && \
-    git submodule update && \
-    ./build.sh && \
-    ./configure --with-lua=/usr/local && \
-    make -j$(nproc) && \
-    make install
 
 # sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 # Build LuaJIT with explicit FFI support
@@ -62,6 +63,23 @@ RUN cd luajit2-${VER_LUAJIT} && \
     make -j$(nproc) &&  \
     make install && \
     ln -sf /usr/local/bin/luajit /usr/local/bin/lua
+
+
+
+RUN cd ModSecurity && \
+    git submodule init && \
+    git submodule update && \
+    ./build.sh && \
+    ./configure --with-lua=/usr/local && \
+    --with-lua-include=/usr/local/include/luajit-2.1 \
+    --with-lua-lib=/usr/local/lib \
+    make -j$(nproc) && \
+    make install
+
+
+RUN export LUAJIT_LIB=/usr/local/lib
+RUN export LUAJIT_INC=/usr/local/include/luajit-2.1
+RUN export LD_LIBRARY_PATH=${LUAJIT_LIB}:${LD_LIBRARY_PATH:-}
 
 # Configure and build Nginx with proper LuaJIT environment
 RUN cd nginx-${VER_NGINX} && \
