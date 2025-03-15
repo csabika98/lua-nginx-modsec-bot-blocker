@@ -56,9 +56,10 @@ RUN cd ModSecurity && \
     make -j$(nproc) && \
     make install
 
+# sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 # Build LuaJIT with explicit FFI support
 RUN cd luajit2-${VER_LUAJIT} && \
-    make -j$(nproc) BUILDMODE=dynamic && \
+    make -j$(nproc) &&  \
     make install && \
     ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 
