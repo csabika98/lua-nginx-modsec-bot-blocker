@@ -18,6 +18,8 @@
 6. [Prerequisites](#prerequisites)
 7. [Recommended SSL Configuration](#recommended-ssl-configuration)
 8. [Recommended Lua Extensions](#recommended-lua-extensions)
+9. [Install](#install)
+10. [Install (Docker)](#install-docker)
 
 
 # News
@@ -30,7 +32,6 @@ docker run --rm -d --name test-nginx -p 5002:80 derank123/lua-ubuntu-nginx-modse
 - Change port if 5002 is unavailable for you, as it is set to 5002 for host
 - For port 80 -> ```docker run -d -p 80:80```
 
-Some tests:
 ![13](screenshots/13.png)
 
 
@@ -259,3 +260,17 @@ Ubuntu supported as of now only (other distros will be supported soon)
 * Make sh executable
 * Run it with sudo
 
+## Install (Docker)
+
+Ubuntu supported as of now only (other distros will be supported soon)
+* 1. Build the container
+#### for example:
+```bash
+docker build -t derank123/nginx-secured-modsec-ultimate-bad-bot-blocker:latest --build-arg INSTALL_BOT_BLOCKER=true . --no-cache
+```
+
+* 2. Run it
+#### for example:
+```bash
+docker run --rm --name test-nginx -p 5002:80 docker.io/derank123/nginx-secured:latest
+```
