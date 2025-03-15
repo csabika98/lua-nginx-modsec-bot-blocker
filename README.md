@@ -128,8 +128,37 @@ location /say_hello_lua {
 
 # ModSecurity test-cases
 
+#### 1. SQLi
+
+```curl -v "http://localhost/?id=1%27%20OR%201=1--"```
+
+![8](screenshots/8.png)
+
+Log:
+![9](screenshots/9.png)
+
+<b>Expected: 403 Forbidden (ModSecurity blocking SQLi)</b>
+
+#### 2. XSS Attack Test
+
+```curl -v "http://localhost/?param=<script>alert('XSS')</script>"```
+
+![10](screenshots/10.png)
 
 
+Log:
+![11](screenshots/11.png)
+
+<b>Expected: 403 Forbidden</b>
+
+# nginx-ultimate-bad-bot-blocker test-cases
+
+
+```curl -A "Xenu Link Sleuth" -I http://localhost```
+
+![12](screenshots/12.png)
+
+<b>Expected: Empty reply from server</b>
 
 ## Introduction
 
