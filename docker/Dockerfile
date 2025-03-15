@@ -1,32 +1,16 @@
-FROM ubuntu:24.04
+FROM debian:bookworm-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
+ARG ULTIMATE_BAD_BOT_BLOCKER
 
-ARG INSTALL_BOT_BLOCKER=false
-ENV VER_NGINX=1.27.4
-ENV VER_NGX_DEVEL_KIT=0.3.4
-ENV VER_NJS=0.8.9
-ENV VER_GEOIP=3.4
-ENV VER_LUAJIT=2.1-20250117
-ENV VER_LUA_NGINX_MODULE=0.10.28
-ENV VER_LUA_RESTY_CORE=0.1.31
-ENV VER_LUAROCKS=3.11.1
-ENV VER_OPENRESTY_HEADERS=0.38
-ENV VER_OPENRESTY_DNS=0.23
-ENV VER_LUA_RESTY_LRUCACHE=0.15
-ENV VER_OPENRESTY_MEMCACHED=0.17
-ENV VER_OPENRESTY_MYSQL=0.27
-ENV VER_OPENRESTY_REDIS=0.32
-ENV VER_OPENRESTY_SHELL=0.03
-ENV VER_OPENRESTY_SIGNAL=0.04
-ENV VER_OPENRESTY_WEBSOCKET=0.13
-ENV VER_OPENRESTY_STREAMLUA=35071d983042b6820427d2312c143a13a137b2ea
-ENV VER_CLOUDFLARE_COOKIE=f418d77082eaef48331302e84330488fdc810ef4
-ENV VER_OPENRESTY_TABLEPOOL=0.03
-ENV VER_LUA_UPSTREAM=0.07
-ENV VER_PROMETHEUS=0.20240525
-ENV VER_MISC_NGINX=0.33
+ARG VER_NGINX
+ARG VER_LUA
+ARG VER_LUAROCKS
 
+ENV ULTIMATE_BAD_BOT_BLOCKER=${ULTIMATE_BAD_BOT_BLOCKER} \
+    VER_NGINX=${VER_NGINX} \
+    VER_LUA=${VER_LUA} \
+    VER_LUAROCKS=${VER_LUAROCKS}
 
 WORKDIR /build
 
@@ -35,58 +19,66 @@ RUN apt-get update && \
     ca-certificates curl g++ libmaxminddb-dev libpcre3-dev \
     libssl-dev libxml2-dev libxslt1-dev make patch unzip zlib1g-dev \
     git gnupg2 gettext-base gcc build-essential autoconf automake \
-    libtool libcurl4-openssl-dev libfuzzy-dev ssdeep gettext pkg-config \
-    libgeoip-dev libyajl-dev doxygen iproute2 libpcre2-dev liblua5.1-0-dev \
-    wget dnsutils cron && \
+    libtool libcurl4-openssl-dev libfuzzy-dev ssdeep pkg-config \
+    libgeoip-dev libyajl-dev libpcre2-dev liblua${VER_LUA}-dev && \
     apt-get clean && \
+    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://nginx.org/download/nginx-${VER_NGINX}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/luajit2/archive/v${VER_LUAJIT}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/vision5/ngx_devel_kit/archive/v${VER_NGX_DEVEL_KIT}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/lua-nginx-module/archive/v${VER_LUA_NGINX_MODULE}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/headers-more-nginx-module/archive/v${VER_OPENRESTY_HEADERS}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/lua-upstream-nginx-module/archive/v${VER_LUA_UPSTREAM}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/leev/ngx_http_geoip2_module/archive/${VER_GEOIP}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/nginx/njs/archive/${VER_NJS}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/set-misc-nginx-module/archive/v${VER_MISC_NGINX}.tar.gz | tar -xz && \
-    curl -fsSL https://github.com/openresty/stream-lua-nginx-module/archive/${VER_OPENRESTY_STREAMLUA}.tar.gz | tar -xz && \
-    git clone https://github.com/owasp-modsecurity/ModSecurity-nginx && \
-    git clone https://github.com/owasp-modsecurity/ModSecurity && \
-    git clone https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
+RUN set -eux; \
+    download_zip() { \
+        url=$1; \
+        target_dir=$2; \
+        temp_dir=$(mktemp -d); \
+        curl -fsSL -o temp.zip "$url"; \
+        unzip temp.zip -d "$temp_dir"; \
+        rm temp.zip; \
+        nested_dir=$(find "$temp_dir" -mindepth 1 -maxdepth 1 -type d); \
+        mv "$nested_dir" "$target_dir"; \
+        rm -rf "$temp_dir"; \
+    }; \
+    download_tgz() { curl -fsSL "$1" | tar -xz; }; \
+    download_tgz "https://nginx.org/download/nginx-${VER_NGINX}.tar.gz"; \
+    download_tgz "https://luarocks.org/releases/luarocks-${VER_LUAROCKS}.tar.gz"; \
+    download_zip "https://github.com/openresty/luajit2/archive/refs/heads/v2.1-agentzh.zip" luajit-2.1; \
+    download_zip "https://github.com/vision5/ngx_devel_kit/archive/refs/heads/master.zip" ngx_devel_kit; \
+    download_zip "https://github.com/openresty/lua-nginx-module/archive/refs/heads/master.zip" lua-nginx-module; \
+    download_zip "https://github.com/openresty/headers-more-nginx-module/archive/refs/heads/master.zip" headers-more-nginx-module; \
+    download_zip "https://github.com/openresty/lua-upstream-nginx-module/archive/refs/heads/master.zip" lua-upstream-nginx-module; \
+    download_zip "https://github.com/leev/ngx_http_geoip2_module/archive/refs/heads/master.zip" ngx_http_geoip2_module; \
+    download_zip "https://github.com/nginx/njs/archive/refs/heads/master.zip" njs; \
+    download_zip "https://github.com/openresty/set-misc-nginx-module/archive/refs/heads/master.zip" set-misc-nginx-module; \
+    download_zip "https://github.com/openresty/stream-lua-nginx-module/archive/refs/heads/master.zip" stream-lua-nginx-module; \
+    download_zip "https://github.com/openresty/memc-nginx-module/archive/refs/heads/master.zip" memc-nginx-module; \
+    download_zip "https://github.com/openresty/xss-nginx-module/archive/refs/heads/master.zip" xss-nginx-module; \
+    download_zip "https://github.com/openresty/lua-ssl-nginx-module/archive/refs/heads/master.zip" lua-ssl-nginx-module; \
+    download_zip "https://github.com/openresty/encrypted-session-nginx-module/archive/refs/heads/master.zip" encrypted-session-nginx-module; \
+    download_zip "https://github.com/openresty/echo-nginx-module/archive/refs/heads/master.zip" echo-nginx-module; \
+    download_zip "https://github.com/knyar/nginx-lua-prometheus/archive/refs/heads/main.zip" nginx-lua-prometheus; \
+    download_zip "https://github.com/cloudflare/lua-upstream-cache-nginx-module/archive/refs/heads/master.zip" lua-upstream-cache-nginx-module; \
+    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx; \
+    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity; \
+    git clone --depth 1 --shallow-submodules https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
 
-
-# sudo ln -sf /usr/local/bin/luajit /usr/local/bin/lua
-# Build LuaJIT with explicit FFI support
-RUN cd luajit2-${VER_LUAJIT} && \
-    make -j$(nproc) &&  \
-    make install && \
-    ln -sf /usr/local/bin/luajit /usr/local/bin/lua
-
-
+RUN  make -C luajit-2.1 -j$(nproc) && \
+     make -C luajit-2.1 install PREFIX=/usr/local && \
+     ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 
 RUN cd ModSecurity && \
-    git submodule init && \
-    git submodule update && \
+    git submodule update --init && \
     ./build.sh && \
     ./configure --with-lua=/usr/local \
-    --with-lua-include=/usr/local/include/luajit-2.1 \
-    --with-lua-lib=/usr/local/lib && \
+        --with-lua-include=/usr/local/include/luajit-2.1 \
+        --with-lua-lib=/usr/local/lib && \
     make -j$(nproc) && \
     make install
 
-
-
-# RUN export LUAJIT_LIB=/usr/local/lib
-# RUN export LUAJIT_INC=/usr/local/include/luajit-2.1
-# RUN export LD_LIBRARY_PATH=${LUAJIT_LIB}:${LD_LIBRARY_PATH:-}
-
-# Configure and build Nginx with proper LuaJIT environment
 RUN cd nginx-${VER_NGINX} && \
     export LUAJIT_LIB=/usr/local/lib && \
     export LUAJIT_INC=/usr/local/include/luajit-2.1 && \
     export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH && \
+    export PATH=/usr/local/bin:$PATH && \
     ./configure \
     --prefix=/etc/nginx \
     --sbin-path=/usr/sbin/nginx \
@@ -129,77 +121,159 @@ RUN cd nginx-${VER_NGINX} && \
     --with-stream_ssl_preread_module \
     --with-ld-opt="-Wl,-rpath,${LUAJIT_LIB}" \
     --with-cc-opt="-I${LUAJIT_INC}" \
-    --add-module=../ngx_devel_kit-${VER_NGX_DEVEL_KIT} \
-    --add-module=../lua-nginx-module-${VER_LUA_NGINX_MODULE} \
-    --add-module=../lua-upstream-nginx-module-${VER_LUA_UPSTREAM} \
-    --add-module=../headers-more-nginx-module-${VER_OPENRESTY_HEADERS} \
-    --add-module=../ngx_http_geoip2_module-${VER_GEOIP} \
-    --add-module=../njs-${VER_NJS}/nginx \
-    --add-module=../set-misc-nginx-module-${VER_MISC_NGINX} \
-    --add-module=../stream-lua-nginx-module-${VER_OPENRESTY_STREAMLUA} \
-    --add-module=../ModSecurity-nginx && \
+        $(echo \
+        --add-module=../ngx_devel_kit \
+        --add-module=../lua-nginx-module \
+        --add-module=../headers-more-nginx-module \
+        --add-module=../lua-upstream-nginx-module \
+        --add-module=../ngx_http_geoip2_module \
+        --add-module=../njs/nginx \
+        --add-module=../set-misc-nginx-module \
+        --add-module=../stream-lua-nginx-module \
+        --add-module=../memc-nginx-module \
+        --add-module=../xss-nginx-module \
+        --add-module=../lua-ssl-nginx-module \
+        --add-module=../encrypted-session-nginx-module \
+        --add-module=../echo-nginx-module \
+        --add-module=../lua-upstream-cache-nginx-module \
+        --add-module=../ModSecurity-nginx) && \
     make -j$(nproc) && \
     make install
 
-RUN groupadd --system --gid 101 nginx && \
+RUN cd luarocks-${VER_LUAROCKS} && \
+    ./configure --with-lua=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+
+ENV VER_LUA=5.1 \
+    LUA_LIB_DIR=/usr/local/share/lua/${VER_LUA} \
+    PREFIX=/usr/local
+
+ARG lua_components=" \
+    openresty/lua-resty-core \
+    openresty/lua-resty-lrucache \
+    openresty/lua-resty-dns \
+    openresty/lua-resty-redis \
+    openresty/lua-resty-mysql \
+    openresty/lua-resty-memcached \
+    openresty/lua-resty-shell \
+    openresty/lua-resty-signal \
+    openresty/lua-resty-websocket \
+    openresty/lua-tablepool \
+    openresty/lua-resty-string \
+    openresty/lua-resty-upload \
+    openresty/lua-resty-upstream-healthcheck \
+    openresty/lua-resty-balancer \
+    cloudflare/lua-resty-logger-socket:lib \
+    knyar/nginx-lua-prometheus:."
+
+RUN set -eux; \
+    for component in ${lua_components}; do \
+        repo=$(echo "${component}" | cut -d: -f1); \
+        path=$(echo "${component}" | cut -d: -f2); \
+        dir_name=$(basename "${repo}"); \
+        \
+        echo "Installing ${repo}..."; \
+        rm -rf "${dir_name}"; \
+        git clone --depth 1 "https://github.com/${repo}" "${dir_name}"; \
+        \
+        cd "${dir_name}"; \
+        if [ -f Makefile ]; then \
+            make && \
+            make install \
+                LUA_LIB_DIR="/usr/local/share/lua/5.1" \
+                PREFIX="/usr/local"; \
+        else \
+            case "${repo}" in \
+                cloudflare/lua-resty-logger-socket) \
+                    cp -R lib/resty/logger /usr/local/share/lua/5.1/resty/ ;; \
+                knyar/nginx-lua-prometheus) \
+                    cp -v *.lua /usr/local/share/lua/5.1/ ;; \
+                *) echo "Unknown component: ${repo}"; exit 1 ;; \
+            esac \
+        fi; \
+        cd ..; \
+        rm -rf "${dir_name}"; \
+    done
+
+RUN ls -l ${LUA_LIB_DIR}/resty && \
+    ls -l ${PREFIX}/lib/lua/${VER_LUA}
+
+
+RUN echo "$VER_LUA" | tee /usr/local/lua_version
+
+RUN if [ ${ULTIMATE_BAD_BOT_BLOCKER} = "true" ]; then \
+    echo "true" > /usr/local/ultimate_bot; \
+else \
+    echo "false" > /usr/local/ultimate_bot; \
+fi
+
+RUN rm -rf /build/* /var/lib/apt/lists/* /tmp/*
+
+FROM debian:bookworm-slim
+
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /etc/nginx /etc/nginx
+COPY --from=builder /usr/sbin/nginx /usr/sbin/
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY defaultv2.conf /etc/nginx/sites-available/default.conf
+COPY modsecurity.conf-recommended /usr/local/modsecurity/
+COPY unicode.mapping /usr/local/modsecurity/
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libmaxminddb0 gcc binutils curl unzip libcurl4-openssl-dev libpcre3 libssl3 zlib1g libxml2 libxslt1.1 \
+    libgeoip1 libyajl2 libpcre2-8-0 liblua$(cat /usr/local/lua_version)-dev libfuzzy2 ssdeep && \
+    apt-get autoremove -y && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system --gid 101 nginx && \
     useradd --system --gid nginx --no-create-home --shell /bin/false --uid 101 nginx && \
-    mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/sites-{available,enabled} && \
+    mkdir -p /var/log/nginx /var/cache/nginx /etc/nginx/sites-enabled && \
+    ln -sf /dev/stdout /var/log/nginx/error.log && \
+    ln -sf /dev/stdout /var/log/nginx/access.log && \
     chown -R nginx:nginx /var/cache/nginx /var/log/nginx
 
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY default.conf /etc/nginx/sites-available/default.conf
-RUN mkdir -p /etc/nginx/sites-enabled/
+
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
-    cp ModSecurity/unicode.mapping /etc/nginx/ && \
-    cp ModSecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf && \
+    cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf && \
+    cp /usr/local/modsecurity/unicode.mapping /etc/nginx/ && \
+    cp /usr/local/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf && \
     sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsecurity.conf && \
-    echo "Include /etc/nginx/coreruleset/crs-setup.conf" >> /etc/nginx/modsecurity.conf && \
-    echo "Include /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
+    echo "Include /etc/nginx/coreruleset/crs-setup.conf\nInclude /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
 
-RUN cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
+RUN export ULTIMATE_BAD_BOT_BLOCKER=$(cat /usr/local/ultimate_bot)
 
-
-RUN apt-get update && apt-get install sudo
-
-# Function to install Lua components
-RUN echo '#!/bin/bash\n\
-install_lua_component() {\n\
-    repo=$1\n\
-    version=$2\n\
-    src_path=$3\n\
-    target_dir=/usr/local/share/lua/5.1/\n\
-    git clone --depth 1 --branch "$version" "https://github.com/$repo"\n\
-    cd "${repo#*/}"\n\
-    sudo mkdir -p "$target_dir"\n\
-    sudo cp -R $src_path "$target_dir"\n\
-    cd ..\n\
-    sudo rm -rf "${repo#*/}"\n\
-}\n' > /install_lua_component.sh
-
-RUN chmod +x /install_lua_component.sh && \
-    . /install_lua_component.sh && \
-    install_lua_component "openresty/lua-resty-core" "v$VER_LUA_RESTY_CORE" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-lrucache" "v$VER_LUA_RESTY_LRUCACHE" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-dns" "v$VER_OPENRESTY_DNS" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-redis" "v$VER_OPENRESTY_REDIS" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-memcached" "v$VER_OPENRESTY_MEMCACHED" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-mysql" "v$VER_OPENRESTY_MYSQL" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-shell" "v$VER_OPENRESTY_SHELL" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-signal" "v$VER_OPENRESTY_SIGNAL" "lib/resty" && \
-    install_lua_component "openresty/lua-resty-websocket" "v$VER_OPENRESTY_WEBSOCKET" "lib/resty" && \
-    install_lua_component "openresty/lua-tablepool" "v$VER_OPENRESTY_TABLEPOOL" "lib/"
-
-
-RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
+RUN if [ {$ULTIMATE_BAD_BOT_BLOCKER} = "true" ]; then \
+    apt-get update && \
+    apt-get install -y --no-install-recommends sudo && \
     curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker && \
     chmod +x /usr/local/sbin/install-ngxblocker && \
     /usr/local/sbin/install-ngxblocker -x && \
     mkdir -p /var/www && \
-    sudo /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf; \
+    /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf && \
+    apt-get purge -y sudo && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*; \
 fi
 
+RUN luarocks config variables.LUA_INCDIR /usr/include/lua$(cat /usr/local/lua_version)/
 
-#RUN rm -rf /build
+
+
+# # Some optional lua
+# RUN mkdir -p /etc/nginx/lua 
+# COPY bearer.lua /etc/nginx/lua/bearer.lua
+
+# RUN luarocks install lua-resty-jwt
+# RUN luarocks install lua-resty-http
+# RUN luarocks install lua-cjson
+
+
+RUN find /usr/local -type f \( -name '*.a' -o -name '*.la' \) -delete && \
+    rm -rf /usr/local/include /usr/local/share/man /usr/local/share/doc
+
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
