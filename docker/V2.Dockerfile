@@ -189,6 +189,8 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
 
 
 RUN apt update && apt install -y libcurl4 ssdeep 
-    
+RUN rm -rf /var/lib/apt/lists/*
+
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
