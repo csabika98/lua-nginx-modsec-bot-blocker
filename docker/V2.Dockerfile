@@ -140,7 +140,7 @@ RUN apt-get update && \
 
 RUN groupadd --system --gid 101 nginx && \
     useradd --system --gid nginx --no-create-home --shell /bin/false --uid 101 nginx && \
-    mkdir -p /var/log/nginx /etc/nginx/sites-{available,enabled} && \
+    mkdir -p /var/log/nginx /var/cache/nginx /etc/nginx/sites-enabled && \
     chown -R nginx:nginx /var/cache/nginx /var/log/nginx
 
 RUN echo '#!/bin/bash\n\
