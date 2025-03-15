@@ -104,6 +104,8 @@ trap cleanup EXIT
     cd ..
 
     cd "nginx-${VER_NGINX}"
+    curl -fsSL -o nginx-1.27.1-socket_cloexec.patch https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
+    patch -p1 < ../nginx-1.27.1-socket_cloexec.patch
     export LUAJIT_LIB=/usr/local/lib
     export LUAJIT_INC=/usr/local/include/luajit-2.1
     export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -375,17 +377,6 @@ EOF
         sed -i '1i# OWASP CRS Rules\nInclude coreruleset/crs-setup.conf\nInclude coreruleset/rules/*.conf\n' "$MODSEC_CONF"
     fi
 
-
-
-    if [ "$(cat /usr/local/ultimate_bot)" = "true" ]; then
-        apt-get install -y --no-install-recommends 
-        curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker
-        chmod +x /usr/local/sbin/install-ngxblocker
-        /usr/local/sbin/install-ngxblocker -x
-        mkdir -p /var/www
-        /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf
-        apt-get purge -y 
-    fi
 
     find /usr/local -type f -name '*.a' -delete
     strip /usr/sbin/nginx
