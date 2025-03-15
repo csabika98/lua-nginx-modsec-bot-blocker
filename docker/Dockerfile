@@ -158,6 +158,7 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
 
 RUN cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
 
+# Function to install Lua components
 RUN echo '#!/bin/bash\n\
 install_lua_component() {\n\
     repo=$1\n\
@@ -173,7 +174,7 @@ install_lua_component() {\n\
 }\n' > /install_lua_component.sh
 
 RUN chmod +x /install_lua_component.sh && \
-    source /install_lua_component.sh && \
+    . /install_lua_component.sh && \
     install_lua_component "openresty/lua-resty-core" "v$VER_LUA_RESTY_CORE" "lib/resty" && \
     install_lua_component "openresty/lua-resty-lrucache" "v$VER_LUA_RESTY_LRUCACHE" "lib/resty" && \
     install_lua_component "openresty/lua-resty-dns" "v$VER_OPENRESTY_DNS" "lib/resty" && \
@@ -184,7 +185,6 @@ RUN chmod +x /install_lua_component.sh && \
     install_lua_component "openresty/lua-resty-signal" "v$VER_OPENRESTY_SIGNAL" "lib/resty" && \
     install_lua_component "openresty/lua-resty-websocket" "v$VER_OPENRESTY_WEBSOCKET" "lib/resty" && \
     install_lua_component "openresty/lua-tablepool" "v$VER_OPENRESTY_TABLEPOOL" "lib/"
-
 
 
 RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
