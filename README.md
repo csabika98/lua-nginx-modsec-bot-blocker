@@ -255,14 +255,18 @@ location /lua-test {
 
 ## Install 
 
-Ubuntu supported as of now only (other distros will be supported soon)
 * Clone the repo
 * Make sh executable
-* Run it with sudo
+* Run it with sudo 
+
+
+Note. 
+Ubuntu 24.04 (or compatible Debian-based system)
 
 ## Install (Docker)
 
-Ubuntu supported as of now only (other distros will be supported soon)
+Docker image based on Ubuntu 24.04
+
 * 1. Build the container
 #### for example:
 ```bash
