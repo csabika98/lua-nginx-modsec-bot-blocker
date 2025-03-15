@@ -78,9 +78,9 @@ RUN cd ModSecurity && \
 
 
 
-RUN export LUAJIT_LIB=/usr/local/lib
-RUN export LUAJIT_INC=/usr/local/include/luajit-2.1
-RUN export LD_LIBRARY_PATH=${LUAJIT_LIB}:${LD_LIBRARY_PATH:-}
+# RUN export LUAJIT_LIB=/usr/local/lib
+# RUN export LUAJIT_INC=/usr/local/include/luajit-2.1
+# RUN export LD_LIBRARY_PATH=${LUAJIT_LIB}:${LD_LIBRARY_PATH:-}
 
 # Configure and build Nginx with proper LuaJIT environment
 RUN cd nginx-${VER_NGINX} && \
@@ -104,19 +104,38 @@ RUN cd nginx-${VER_NGINX} && \
     --user=nginx \
     --group=nginx \
     --with-compat \
+    --with-file-aio \
     --with-threads \
-    --with-http_ssl_module \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_mp4_module \
+    --with-http_random_index_module \
     --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
+    --with-http_ssl_module \
+    --with-http_stub_status_module \
     --with-http_sub_module \
     --with-http_v2_module \
+    --with-mail \
+    --with-mail_ssl_module \
     --with-stream \
-    --with-ld-opt="-Wl,-rpath,/usr/local/lib" \
-    --with-cc-opt="-I/usr/local/include/luajit-2.1" \
+    --with-stream_realip_module \
+    --with-stream_ssl_module \
+    --with-stream_ssl_preread_module \
+    --with-ld-opt="-Wl,-rpath,${LUAJIT_LIB}" \
+    --with-cc-opt="-I${LUAJIT_INC}" \
     --add-module=../ngx_devel_kit-${VER_NGX_DEVEL_KIT} \
     --add-module=../lua-nginx-module-${VER_LUA_NGINX_MODULE} \
+    --add-module=../lua-upstream-nginx-module-${VER_LUA_UPSTREAM} \
     --add-module=../headers-more-nginx-module-${VER_OPENRESTY_HEADERS} \
     --add-module=../ngx_http_geoip2_module-${VER_GEOIP} \
     --add-module=../njs-${VER_NJS}/nginx \
+    --add-module=../set-misc-nginx-module-${VER_MISC_NGINX} \
     --add-module=../stream-lua-nginx-module-${VER_OPENRESTY_STREAMLUA} \
     --add-module=../ModSecurity-nginx && \
     make -j$(nproc) && \
