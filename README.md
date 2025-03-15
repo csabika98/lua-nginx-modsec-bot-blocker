@@ -1,5 +1,21 @@
 # Enhanced Nginx Build with Lua Support, ModSecurity WAF, and Security Modules
 
+1. [Screenshots](#screenshots)
+2. [Test Cases](#test-cases)
+    -   [Lua Test Cases](#lua-test-cases)
+        1. [Basic Authentication Test](#1-basic-authentication-test)
+        2. [Security Filter Test](#2-security-filter-test)
+        3. [Lua Module Test](#3-lua-module-test)
+    - [ModSecurity Test Cases](#modsecurity-test-cases)
+        1. [SQL Injection Test](#1-sqli)
+        2. [XSS Attack Test](#2-xss-attack-test)
+    - [Test Cases for nginx-ultimate-bad-bot-blocker](#nginx-ultimate-bad-bot-blocker-test-cases)
+3. [Introduction](#introduction)
+4. [Features](#features)
+5. [Prerequisites](#prerequisites)
+6. [Recommended SSL Configuration](#recommended-ssl-configuration)
+7. [Recommended Lua Extensions](#recommended-lua-extensions)
+
 
 ## Screenshots
 
@@ -218,15 +234,10 @@ location /lua-test {
 }
 ```
 
-## Activate Bot Blocker
-
-```bash
-include /etc/nginx/bot-blocker/blockbots.conf;
-include /etc/nginx/bot-blocker/ddos.conf;
-```
 
 ## Install 
 
+Ubuntu supported as of now only (other distros will be supported soon)
 * Clone the repo
 * Make sh executable
 * Run it with sudo
