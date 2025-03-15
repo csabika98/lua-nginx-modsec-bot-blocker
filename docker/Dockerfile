@@ -194,7 +194,8 @@ RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
     curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker && \
     chmod +x /usr/local/sbin/install-ngxblocker && \
     /usr/local/sbin/install-ngxblocker -x && \
-    /usr/local/sbin/setup-ngxblocker -x -n default.conf; \
+    mkdir -p /var/www && \
+    sudo /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf; \
 fi
 
 RUN rm -rf /build
