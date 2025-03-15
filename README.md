@@ -22,12 +22,16 @@
 
 # News
 
-* Now you can try it without installing it to your host machine. 
+* Now you can try it without installing anything. Pre-built docker image released.
 
-    ```
-    docker run --rm -d --name test-nginx -p 5002:80 lua-ubuntu-nginx-1.27.4-modsec-bot-blocker
-    ```
+```
+docker run --rm -d --name test-nginx -p 5002:80 derank123/lua-ubuntu-nginx-modsec-bot-blocker:1.27.4
+```
+- Change port, as it is set to 5002 for host
+- For port 80 -> ```docker run -d -p 80:80```
 
+Some tests:
+![13](screenshots/13.png)
 
 
 # Screenshots
