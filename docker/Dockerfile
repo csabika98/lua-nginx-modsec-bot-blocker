@@ -1,14 +1,12 @@
 FROM debian:bookworm-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG ULTIMATE_BAD_BOT_BLOCKER
 
 ARG VER_NGINX
 ARG VER_LUA
 ARG VER_LUAROCKS
 
-ENV ULTIMATE_BAD_BOT_BLOCKER=${ULTIMATE_BAD_BOT_BLOCKER} \
-    VER_NGINX=${VER_NGINX} \
+ENV VER_NGINX=${VER_NGINX} \
     VER_LUA=${VER_LUA} \
     VER_LUAROCKS=${VER_LUAROCKS}
 
@@ -73,6 +71,17 @@ RUN cd ModSecurity && \
         --with-lua-lib=/usr/local/lib && \
     make -j$(nproc) && \
     make install
+
+# https://git.186526.xyz/186526/openresty/src/branch/master/patches
+# Before build we apply a patch for resty-signal and resty-shell
+# https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
+
+
+RUN curl -fsSL -o nginx-1.27.1-socket_cloexec.patch https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
+
+RUN cd nginx-${VER_NGINX} && \
+    patch -p1 < ../nginx-1.27.1-socket_cloexec.patch
+    
 
 RUN cd nginx-${VER_NGINX} && \
     export LUAJIT_LIB=/usr/local/lib && \
@@ -196,6 +205,7 @@ RUN set -eux; \
         cd ..; \
         rm -rf "${dir_name}"; \
     done
+    
 
 RUN ls -l ${LUA_LIB_DIR}/resty && \
     ls -l ${PREFIX}/lib/lua/${VER_LUA}
@@ -223,7 +233,7 @@ COPY unicode.mapping /usr/local/modsecurity/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libmaxminddb0 gcc binutils curl unzip libcurl4-openssl-dev libpcre3 libssl3 zlib1g libxml2 libxslt1.1 \
+    libmaxminddb0 gcc gnupg2 binutils wget curl unzip libcurl4-openssl-dev libpcre3 libssl3 zlib1g libxml2 libxslt1.1 \
     libgeoip1 libyajl2 libpcre2-8-0 liblua$(cat /usr/local/lua_version)-dev libfuzzy2 ssdeep && \
     apt-get autoremove -y && \
     apt-get clean -y && \
@@ -243,20 +253,6 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsecurity.conf && \
     echo "Include /etc/nginx/coreruleset/crs-setup.conf\nInclude /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
 
-RUN export ULTIMATE_BAD_BOT_BLOCKER=$(cat /usr/local/ultimate_bot)
-
-RUN if [ {$ULTIMATE_BAD_BOT_BLOCKER} = "true" ]; then \
-    apt-get update && \
-    apt-get install -y --no-install-recommends sudo && \
-    curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker && \
-    chmod +x /usr/local/sbin/install-ngxblocker && \
-    /usr/local/sbin/install-ngxblocker -x && \
-    mkdir -p /var/www && \
-    /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf && \
-    apt-get purge -y sudo && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*; \
-fi
 
 RUN luarocks config variables.LUA_INCDIR /usr/include/lua$(cat /usr/local/lua_version)/
 
