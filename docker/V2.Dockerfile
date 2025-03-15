@@ -134,14 +134,37 @@ COPY --from=builder /etc/nginx/coreruleset /etc/nginx/coreruleset
 COPY modsecurity.conf-recommended /usr/local/modsecurity/
 COPY unicode.mapping /usr/local/modsecurity/
 
+ARG INSTALL_BOT_BLOCKER=false
+ARG INSTALL_BOT_BLOCKER=false
+ENV VER_NGINX=1.27.4
+ENV VER_NGX_DEVEL_KIT=0.3.4
+ENV VER_NJS=0.8.9
+ENV VER_GEOIP=3.4
+ENV VER_LUAJIT=2.1-20250117
+ENV VER_LUA_NGINX_MODULE=0.10.28
+ENV VER_LUA_RESTY_CORE=0.1.31
+ENV VER_LUAROCKS=3.11.1
+ENV VER_OPENRESTY_HEADERS=0.38
+ENV VER_OPENRESTY_DNS=0.23
+ENV VER_LUA_RESTY_LRUCACHE=0.15
+ENV VER_OPENRESTY_MEMCACHED=0.17
+ENV VER_OPENRESTY_MYSQL=0.27
+ENV VER_OPENRESTY_REDIS=0.32
+ENV VER_OPENRESTY_SHELL=0.03
+ENV VER_OPENRESTY_SIGNAL=0.04
+ENV VER_OPENRESTY_WEBSOCKET=0.13
+ENV VER_OPENRESTY_STREAMLUA=35071d983042b6820427d2312c143a13a137b2ea
+ENV VER_CLOUDFLARE_COOKIE=f418d77082eaef48331302e84330488fdc810ef4
+ENV VER_OPENRESTY_TABLEPOOL=0.03
+ENV VER_LUA_UPSTREAM=0.07
+ENV VER_PROMETHEUS=0.20240525
+ENV VER_MISC_NGINX=0.33
+
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    ca-certificates curl g++ libmaxminddb-dev libpcre3-dev \
-    libssl-dev libxml2-dev libxslt1-dev make patch unzip zlib1g-dev \
-    git gnupg2 gettext-base gcc build-essential autoconf automake \
-    libtool libcurl4-openssl-dev libfuzzy-dev ssdeep gettext pkg-config \
-    libgeoip-dev libyajl-dev libpcre2-dev liblua5.1-0-dev \
-    wget && \
+    libmaxminddb0 libpcre3 git ca-certificates gnupg2 libssl3 zlib1g libxml2 sudo libxslt1.1 \
+    libgeoip1 libyajl2 liblua5.1-0 && \
     rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 101 nginx && \
