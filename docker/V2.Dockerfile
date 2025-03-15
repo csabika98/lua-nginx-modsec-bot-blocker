@@ -123,6 +123,7 @@ RUN cd nginx-${VER_NGINX} && \
     make -j$(nproc) && \
     make install
 
+RUN apt-get update && apt-get install sudo
 
 RUN echo '#!/bin/bash\n\
 install_lua_component() {\n\
@@ -165,7 +166,7 @@ COPY unicode.mapping /usr/local/modsecurity/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libmaxminddb0 libpcre3 libssl3 zlib1g libxml2 sudo libxslt1.1 \
+    libmaxminddb0 libpcre3 libssl3 zlib1g libxml2 libxslt1.1 \
     libgeoip1 libyajl2 liblua5.1-0 && \
     rm -rf /var/lib/apt/lists/*
 
