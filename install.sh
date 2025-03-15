@@ -19,17 +19,17 @@ case $nginx_choice in
         ;;
 esac
 
-# Bad Bot Blocker installation prompt
+# nginx-ultimate-bad-bot-blocker installation prompt
 echo "----------------------------------------"
-read -p "Do you want to install the Bad Bot Blocker? (y/n): " install_bot_blocker
+read -p "Do you want to install nginx-ultimate-bad-bot-blocker? (y/n): " install_bot_blocker
 case $install_bot_blocker in
     [Yy]* )
         INSTALL_BOT_BLOCKER=true
-        echo "Bad Bot Blocker will be installed"
+        echo "nginx-ultimate-bad-bot-blocker will be installed"
         ;;
     * )
         INSTALL_BOT_BLOCKER=false
-        echo "Skipping Bad Bot Blocker installation"
+        echo "Skipping nginx-ultimate-bad-bot-blocker installation"
         ;;
 esac
 
