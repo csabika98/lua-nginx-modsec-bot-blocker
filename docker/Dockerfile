@@ -47,10 +47,6 @@ RUN curl -fsSL https://nginx.org/download/nginx-${VER_NGINX}.tar.gz | tar -xz &&
     git clone https://github.com/owasp-modsecurity/ModSecurity && \
     git clone https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
-RUN cd luajit2-${VER_LUAJIT} && \
-    make -j$(nproc) && \
-    make install && \
-    ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 
 RUN cd ModSecurity && \
     git submodule init && \
@@ -60,7 +56,17 @@ RUN cd ModSecurity && \
     make -j$(nproc) && \
     make install
 
+# Build LuaJIT with explicit FFI support
+RUN cd luajit2-${VER_LUAJIT} && \
+    make -j$(nproc) BUILDMODE=dynamic && \
+    make install && \
+    ln -sf /usr/local/bin/luajit /usr/local/bin/lua
+
+# Configure and build Nginx with proper LuaJIT environment
 RUN cd nginx-${VER_NGINX} && \
+    export LUAJIT_LIB=/usr/local/lib && \
+    export LUAJIT_INC=/usr/local/include/luajit-2.1 && \
+    export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH && \
     ./configure \
     --prefix=/etc/nginx \
     --sbin-path=/usr/sbin/nginx \
@@ -84,6 +90,7 @@ RUN cd nginx-${VER_NGINX} && \
     --with-http_sub_module \
     --with-http_v2_module \
     --with-stream \
+    --with-ld-opt="-Wl,-rpath,/usr/local/lib" \
     --with-cc-opt="-I/usr/local/include/luajit-2.1" \
     --add-module=../ngx_devel_kit-${VER_NGX_DEVEL_KIT} \
     --add-module=../lua-nginx-module-${VER_LUA_NGINX_MODULE} \
