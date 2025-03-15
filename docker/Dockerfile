@@ -198,7 +198,8 @@ RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
     sudo /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf; \
 fi
 
-RUN rm -rf /build
+
+#RUN rm -rf /build
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
