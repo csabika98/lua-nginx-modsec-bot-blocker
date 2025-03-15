@@ -148,6 +148,7 @@ RUN groupadd --system --gid 101 nginx && \
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/sites-available/default.conf
+RUN mkdir -p /etc/nginx/sites_enabled/
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     cp ModSecurity/unicode.mapping /etc/nginx/ && \
     cp ModSecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf && \
