@@ -198,6 +198,8 @@ Log:
 
 A hardened Nginx build with integrated security features including Lua scripting, ModSecurity WAF, OWASP Core Rule Set, and advanced bot protection.
 
+![14](screenshots/14.png)
+
 ## Features
 
 - **Nginx 1.27.4** with custom-compiled modules
@@ -265,16 +267,44 @@ Ubuntu 24.04 (or compatible Debian-based system)
 
 ## Install (Docker)
 
-Docker image based on Ubuntu 24.04
+Docker image based on Debian
 
-* 1. Build the container
-#### for example:
-```bash
-docker build -t derank123/nginx-secured-modsec-ultimate-bad-bot-blocker:latest --build-arg INSTALL_BOT_BLOCKER=true . --no-cache
+What you can customize:
+
+-   NGINX version
+-   LUAROCKS version
+-   LUA
+-   ULTIMATE_BAD_BOT_BLOCKER (INSTALL OR NOT)
+
+
+
+## BUILD - for example
+
+### Powershell (Windows)
+
+```powershell
+docker build `
+  --build-arg ULTIMATE_BAD_BOT_BLOCKER=true `
+  --build-arg VER_NGINX=1.27.4 `
+  --build-arg VER_LUAROCKS=3.11.1 `
+  --build-arg VER_LUA=5.1 `
+  -t v2-nginx-lua .
 ```
 
-* 2. Run it
-#### for example:
+
+### Linux/macOS
+
 ```bash
-docker run --rm --name test-nginx -p 5002:80 docker.io/derank123/nginx-secured:latest
+docker build \
+  --build-arg ULTIMATE_BAD_BOT_BLOCKER=true \
+  --build-arg VER_NGINX=1.27.4 \
+  --build-arg VER_LUAROCKS=3.11.1 \
+  --build-arg VER_LUA=5.4 \
+  -t v2-nginx-lua .
+```
+
+## RUN - for example
+
+```bash
+docker run --rm -it -p 5002:80 docker.io/library/v2-nginx-lua:latest
 ```
