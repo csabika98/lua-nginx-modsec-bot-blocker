@@ -158,6 +158,9 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
 
 RUN cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
 
+
+RUN apt-get install sudo
+
 # Function to install Lua components
 RUN echo '#!/bin/bash\n\
 install_lua_component() {\n\
