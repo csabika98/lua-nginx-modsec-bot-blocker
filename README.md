@@ -6,20 +6,21 @@
 ![4](screenshots/4.png)
 
 * Possibility to build for custom nginx version
+* Test-cases included
 
 * Optional modules you can install (it will be updated in the future): 
      * nginx-ultimate-bad-bot-blocker 
 
-## Test cases - Lua Endpoint Tests
+# Lua test-cases
 
 
-### Basic Authentication Test
+### 1. Basic Authentication Test
 
 Code:
 ```lua
 location /admin {
     content_by_lua_block {
-        -- Get Authorization header
+        -- Get AUTH header
         local auth = ngx.var.http_authorization
         
         -- Verify credentials format and match
@@ -56,7 +57,7 @@ location /admin {
 
 ---
 
-### Security Filter Test 
+### 2. Security Filter Test 
 
 
 Code:
@@ -88,13 +89,44 @@ location /lua_security_test {
 }
 ```
 
+#### 1. Safe query
 ```curl -v "http://localhost/lua_security_test?q=safe_query"```
 
+![5](screenshots/5.png)
+
+<b>Expected: 200 OK</b>
+
+#### 2. Malicious query
+```curl -v "http://localhost/lua_security_test?input=<script>alert(1)</script>"```
+
+![6](screenshots/6.png)
+
+<b>Expected: 403 Forbidden</b>
+
+-----
+
+### 3. Lua Module Test
+
+Code:
+```lua
+location /say_hello_lua {
+    content_by_lua_block {
+        -- Simple greeting endpoint to verify Lua integration
+        ngx.say("Hello from lua-nginx-module!")
+        
+        -- Optional: Add response headers
+        ngx.header["Content-Type"] = "text/plain"
+        ngx.header["X-Lua-Powered"] = "true"
+    }
+}
+```
+
+```curl -v http://localhost/say_hello_lua```
+
+![7](screenshots/7.png)
 
 
-
-
-
+# ModSecurity test-cases
 
 
 
