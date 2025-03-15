@@ -1,12 +1,40 @@
-#!/usr/bin/env bash
-set -euxo pipefail
+#!/bin/bash
 
-ULTIMATE_BAD_BOT_BLOCKER=${ULTIMATE_BAD_BOT_BLOCKER:-false}
-VER_NGINX=${VER_NGINX:-1.25.3}
+#set -euxo pipefail
+
+
+echo "----------------------------------------"
+echo "1. Latest version of Nginx (current: 1.27.4)"
+echo "2. Custom version"
+read -p "Choose Nginx version [1-2]: " nginx_choice
+
+case $nginx_choice in
+    2)
+        read -p "Enter custom Nginx version (e.g., 1.27.4): " custom_version
+        export VER_NGINX=$custom_version
+        echo "Using custom Nginx version: $VER_NGINX"
+        ;;
+    *)
+        export VER_NGINX=1.27.4
+        echo "Using latest Nginx version: $VER_NGINX"
+        ;;
+esac
+
+VER_NGINX=${VER_NGINX:-1.27.4}
 VER_LUA=${VER_LUA:-5.1}
-VER_LUAROCKS=${VER_LUAROCKS:-3.9.2}
+VER_LUAROCKS=${VER_LUAROCKS:-3.11.1}
 
 export DEBIAN_FRONTEND=noninteractive
+
+cleanup() {
+    local exit_code=$?
+    echo "Cleaning up..."
+    rm -rf /build
+    if [ $exit_code -ne 0 ]; then
+        rm -rf /etc/nginx/coreruleset
+    fi
+}
+trap cleanup EXIT
 
 (
     apt-get update && \
@@ -20,6 +48,8 @@ export DEBIAN_FRONTEND=noninteractive
     BUILD_DIR=/build
     mkdir -p $BUILD_DIR
     cd $BUILD_DIR
+
+
 
     download_zip() {
         url=$1
@@ -57,14 +87,12 @@ export DEBIAN_FRONTEND=noninteractive
     download_zip "https://github.com/cloudflare/lua-upstream-cache-nginx-module/archive/refs/heads/master.zip" lua-upstream-cache-nginx-module
     git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx
     git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/owasp-modsecurity/ModSecurity
-    git clone --depth 1 --shallow-submodules https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
+    #git clone --depth 1 --shallow-submodules https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
-    # Build LuaJIT
     make -C luajit-2.1 -j$(nproc)
     make -C luajit-2.1 install PREFIX=/usr/local
     ln -sf /usr/local/bin/luajit /usr/local/bin/lua
 
-    # Build ModSecurity
     cd ModSecurity
     git submodule update --init
     ./build.sh
@@ -75,11 +103,10 @@ export DEBIAN_FRONTEND=noninteractive
     make install
     cd ..
 
-    # Build Nginx
     cd "nginx-${VER_NGINX}"
     export LUAJIT_LIB=/usr/local/lib
     export LUAJIT_INC=/usr/local/include/luajit-2.1
-    export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     export PATH=/usr/local/bin:$PATH
     ./configure \
         --prefix=/etc/nginx \
@@ -205,43 +232,159 @@ export DEBIAN_FRONTEND=noninteractive
     ls -l ${PREFIX}/lib/lua/${VER_LUA}
 
     echo "$VER_LUA" | tee /usr/local/lua_version
-    echo "$ULTIMATE_BAD_BOT_BLOCKER" | tee /usr/local/ultimate_bot
 )
 
 (
+    BUILD_DIR=/build
+    cd $BUILD_DIR
+
     apt-get update && \
     apt-get install -y --no-install-recommends \
         libmaxminddb0 binutils libcurl4-openssl-dev libpcre3 libssl3 zlib1g libxml2 libxslt1.1 \
         libgeoip1 libyajl2 libpcre2-8-0 "liblua$(cat /usr/local/lua_version)-dev" libfuzzy2 ssdeep
 
-    groupadd --system --gid 101 nginx
-    useradd --system --gid nginx --no-create-home --shell /bin/false --uid 101 nginx
+    if ! getent group nginx >/dev/null; then
+        groupadd --system nginx || true
+    fi
+    useradd --system \
+        --gid nginx \
+        --no-create-home \
+        --shell /bin/false \
+        nginx || true
 
     mkdir -p /var/log/nginx /var/cache/nginx /etc/nginx/sites-enabled
     ln -sf /dev/stdout /var/log/nginx/error.log
     ln -sf /dev/stdout /var/log/nginx/access.log
     chown -R nginx:nginx /var/cache/nginx /var/log/nginx
 
-    cp nginx.conf /etc/nginx/nginx.conf
-    cp defaultv2.conf /etc/nginx/sites-available/default.conf
-    cp modsecurity.conf-recommended /usr/local/modsecurity/
-    cp unicode.mapping /usr/local/modsecurity/
+    tee /etc/nginx/nginx.conf <<'EOF'
+    #user  nobody;
+    worker_processes  1;
 
-    ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/
-    cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
-    cp /usr/local/modsecurity/unicode.mapping /etc/nginx/
-    cp /usr/local/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity.conf
-    sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsecurity.conf
-    echo "Include /etc/nginx/coreruleset/crs-setup.conf\nInclude /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        include       mime.types;
+        default_type  application/octet-stream;
+        sendfile        on;
+        keepalive_timeout  65;
+    }
+EOF
+
+    mkdir -p /etc/nginx/sites-{available,enabled}
+    mkdir -p /var/www/
+    # Add to your existing nginx.conf modification section
+    sed -i '/http {/a \    include sites-enabled/*.conf;' /etc/nginx/nginx.conf
+
+    DEFAULT_VHOST="/etc/nginx/sites-available/default.conf"
+
+     tee "$DEFAULT_VHOST" <<'EOF'
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+
+        # Your existing ModSecurity and Lua configurations
+        modsecurity on;
+        modsecurity_rules_file /etc/nginx/modsecurity.conf;
+
+        # Lua test endpoints
+        location /admin {
+            content_by_lua_block {
+                local auth = ngx.var.http_authorization
+                if not auth or auth ~= "Basic " .. ngx.encode_base64("admin:password") then
+                    ngx.header["WWW-Authenticate"] = 'Basic realm="Restricted"'
+                    ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                end
+                ngx.say("Access granted!")
+            }
+        }
+
+        location /api {
+            default_type application/json;
+            content_by_lua_block {
+                local cjson = require("cjson")
+                local data = { message = "Hello, Lua!", timestamp = os.time() }
+                ngx.say(cjson.encode(data))
+            }
+        }
+
+        location /lua_security_test {
+            content_by_lua_block {
+                local bad_patterns = { "script", "SELECT", "UNION" }
+                local query = ngx.var.query_string or ""
+                for _, pattern in ipairs(bad_patterns) do
+                    if string.find(query, pattern, 1, true) then
+                        ngx.exit(ngx.HTTP_FORBIDDEN)
+                    end
+                end
+                ngx.say("Query is safe!")
+            }
+        }
+
+        location /say_hello_lua {
+            content_by_lua_block {
+                    ngx.say("Hello from lua-nginx-module!")
+                }
+        }
+
+
+        location /lua_log_test {
+            content_by_lua_block {
+                local file = io.open("/var/log/nginx/lua_requests.log", "a")
+                if file then
+                    file:write(os.date() .. " - " .. ngx.var.remote_addr .. " accessed " .. ngx.var.request_uri .. "\n")
+                    file:close()
+                end
+                ngx.say("Logged your request!")
+            }
+        }
+
+        # Add other locations and configurations here
+    }
+EOF
+
+    ln -sf "$DEFAULT_VHOST" /etc/nginx/sites-enabled/default.conf    
+
+    NGINX_DIR="/etc/nginx"
+    CRS_DIR="$NGINX_DIR/coreruleset"
+    CONFIG_FILE="$NGINX_DIR/nginx.conf"
+    MODSEC_CONF="$NGINX_DIR/modsecurity.conf"
+
+
+    echo "Setting up ModSecurity base configuration..."
+    cp -f $BUILD_DIR/ModSecurity/unicode.mapping "$NGINX_DIR"
+    cp -f $BUILD_DIR/ModSecurity/modsecurity.conf-recommended "$MODSEC_CONF"
+
+
+    if [[ ! -d "$CRS_DIR" ]]; then
+        echo "Cloning OWASP Core Rule Set..."
+        git clone -q https://github.com/coreruleset/coreruleset.git "$CRS_DIR"
+    else
+        echo "Updating existing Core Rule Set..."
+        (cd "$CRS_DIR" && git pull -q origin main)
+    fi
+    cp -f "$CRS_DIR/crs-setup.conf.example" "$CRS_DIR/crs-setup.conf"
+
+    echo "Configuring $MODSEC_CONF..."
+    sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' "$MODSEC_CONF"
+
+    if ! grep -q "Include coreruleset/crs-setup.conf" "$MODSEC_CONF"; then
+        sed -i '1i# OWASP CRS Rules\nInclude coreruleset/crs-setup.conf\nInclude coreruleset/rules/*.conf\n' "$MODSEC_CONF"
+    fi
+
+
 
     if [ "$(cat /usr/local/ultimate_bot)" = "true" ]; then
-        apt-get install -y --no-install-recommends sudo
+        apt-get install -y --no-install-recommends 
         curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker
         chmod +x /usr/local/sbin/install-ngxblocker
         /usr/local/sbin/install-ngxblocker -x
         mkdir -p /var/www
         /usr/local/sbin/setup-ngxblocker -x -v /etc/nginx/sites-enabled/default.conf -e conf
-        apt-get purge -y sudo
+        apt-get purge -y 
     fi
 
     find /usr/local -type f -name '*.a' -delete
