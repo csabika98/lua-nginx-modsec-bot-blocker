@@ -54,19 +54,15 @@ Code:
 ```lua
 location /admin {
     content_by_lua_block {
-        -- Get AUTH header
         local auth = ngx.var.http_authorization
         
-        -- Verify credentials format and match
         local expected_auth = "Basic " .. ngx.encode_base64("admin:password")
         
         if not auth or auth ~= expected_auth then
-            -- Send authentication challenge
             ngx.header["WWW-Authenticate"] = 'Basic realm="Restricted Area"'
             ngx.exit(ngx.HTTP_UNAUTHORIZED)
         end
         
-        -- Grant access
         ngx.say("Access granted!")
     }
 }
@@ -98,26 +94,20 @@ Code:
 ```lua
 location /lua_security_test {
     content_by_lua_block {
-        -- Define malicious patterns to block
         local bad_patterns = {
             "script",   -- Blocks HTML script tags
             "SELECT",   -- Blocks SQL SELECT statements
             "UNION"     -- Blocks SQL UNION operators
         }
 
-        -- Get query parameters
         local query = ngx.var.query_string or ""
         
-        -- Check each pattern in the query
         for _, pattern in ipairs(bad_patterns) do
-            -- plain=true: disable pattern matching
-            -- start=1: search from first character
             if string.find(query, pattern, 1, true) then
                 ngx.exit(ngx.HTTP_FORBIDDEN)
             end
         end
 
-        -- If no bad patterns found
         ngx.say("Query is safe!")
     }
 }
@@ -145,10 +135,8 @@ Code:
 ```lua
 location /say_hello_lua {
     content_by_lua_block {
-        -- Simple greeting endpoint to verify Lua integration
         ngx.say("Hello from lua-nginx-module!")
         
-        -- Optional: Add response headers
         ngx.header["Content-Type"] = "text/plain"
         ngx.header["X-Lua-Powered"] = "true"
     }
@@ -296,7 +284,7 @@ docker build `
 docker build \
   --build-arg VER_NGINX=1.27.4 \
   --build-arg VER_LUAROCKS=3.11.1 \
-  --build-arg VER_LUA=5.4 \
+  --build-arg VER_LUA=5.1 \
   -t v2-nginx-lua .
 ```
 
