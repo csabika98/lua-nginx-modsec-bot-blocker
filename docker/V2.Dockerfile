@@ -188,7 +188,7 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     echo "Include /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
 
 
-RUN apt update && apt install -y libcurl4 ssdeep 
+RUN apt update && apt install -y libcurl4 ssdeep libcurl4-openssl-dev libfuzzy-dev libgeoip-dev
 RUN rm -rf /var/lib/apt/lists/*
 
 
