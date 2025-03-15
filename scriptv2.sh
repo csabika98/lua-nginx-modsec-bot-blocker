@@ -56,7 +56,7 @@ export DEBIAN_FRONTEND=noninteractive
     download_zip "https://github.com/knyar/nginx-lua-prometheus/archive/refs/heads/main.zip" nginx-lua-prometheus
     download_zip "https://github.com/cloudflare/lua-upstream-cache-nginx-module/archive/refs/heads/master.zip" lua-upstream-cache-nginx-module
     git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx
-    git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity
+    git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/owasp-modsecurity/ModSecurity
     git clone --depth 1 --shallow-submodules https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
     # Build LuaJIT
@@ -79,9 +79,8 @@ export DEBIAN_FRONTEND=noninteractive
     cd "nginx-${VER_NGINX}"
     export LUAJIT_LIB=/usr/local/lib
     export LUAJIT_INC=/usr/local/include/luajit-2.1
-    export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH
     export PATH=/usr/local/bin:$PATH
-
     ./configure \
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \
