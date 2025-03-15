@@ -1,5 +1,5 @@
 # Stage 1: Build environment
-FROM debian:bookworm-slim as builder
+FROM debian:bookworm-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
