@@ -187,5 +187,8 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     echo "Include /etc/nginx/coreruleset/crs-setup.conf" >> /etc/nginx/modsecurity.conf && \
     echo "Include /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
 
+
+RUN apt update && apt install -y libcurl4 
+    
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
