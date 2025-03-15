@@ -1,7 +1,10 @@
 # Enhanced Nginx Build with Lua Support, ModSecurity WAF, and Security Modules
 
-1. [Screenshots](#screenshots)
-2. [Test Cases](#test-cases)
+
+
+1. [News](#news)
+2. [Screenshots](#screenshots)
+3. [Test Cases](#test-cases)
     -   [Lua Test Cases](#lua-test-cases)
         1. [Basic Authentication Test](#1-basic-authentication-test)
         2. [Security Filter Test](#2-security-filter-test)
@@ -10,14 +13,24 @@
         1. [SQL Injection Test](#1-sqli)
         2. [XSS Attack Test](#2-xss-attack-test)
     - [Test Cases for nginx-ultimate-bad-bot-blocker](#nginx-ultimate-bad-bot-blocker-test-cases)
-3. [Introduction](#introduction)
-4. [Features](#features)
-5. [Prerequisites](#prerequisites)
-6. [Recommended SSL Configuration](#recommended-ssl-configuration)
-7. [Recommended Lua Extensions](#recommended-lua-extensions)
+4. [Introduction](#introduction)
+5. [Features](#features)
+6. [Prerequisites](#prerequisites)
+7. [Recommended SSL Configuration](#recommended-ssl-configuration)
+8. [Recommended Lua Extensions](#recommended-lua-extensions)
 
 
-## Screenshots
+# News
+
+* Now you can try it without installing it to your host machine. 
+
+    ```
+    docker run --rm -d --name test-nginx -p 5002:80 lua-ubuntu-nginx-1.27.4-modsec-bot-blocker
+    ```
+
+
+
+# Screenshots
 
 ![4](screenshots/4.png)
 
