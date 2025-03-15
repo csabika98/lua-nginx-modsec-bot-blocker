@@ -158,6 +158,35 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
 
 RUN cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
 
+RUN echo '#!/bin/bash\n\
+install_lua_component() {\n\
+    repo=$1\n\
+    version=$2\n\
+    src_path=$3\n\
+    target_dir=/usr/local/share/lua/5.1/\n\
+    git clone --depth 1 --branch "$version" "https://github.com/$repo"\n\
+    cd "${repo#*/}"\n\
+    sudo mkdir -p "$target_dir"\n\
+    sudo cp -R $src_path "$target_dir"\n\
+    cd ..\n\
+    sudo rm -rf "${repo#*/}"\n\
+}\n' > /install_lua_component.sh
+
+RUN chmod +x /install_lua_component.sh && \
+    source /install_lua_component.sh && \
+    install_lua_component "openresty/lua-resty-core" "v$VER_LUA_RESTY_CORE" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-lrucache" "v$VER_LUA_RESTY_LRUCACHE" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-dns" "v$VER_OPENRESTY_DNS" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-redis" "v$VER_OPENRESTY_REDIS" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-memcached" "v$VER_OPENRESTY_MEMCACHED" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-mysql" "v$VER_OPENRESTY_MYSQL" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-shell" "v$VER_OPENRESTY_SHELL" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-signal" "v$VER_OPENRESTY_SIGNAL" "lib/resty" && \
+    install_lua_component "openresty/lua-resty-websocket" "v$VER_OPENRESTY_WEBSOCKET" "lib/resty" && \
+    install_lua_component "openresty/lua-tablepool" "v$VER_OPENRESTY_TABLEPOOL" "lib/"
+
+
+
 RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
     curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker && \
     chmod +x /usr/local/sbin/install-ngxblocker && \
