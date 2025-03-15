@@ -178,7 +178,7 @@ RUN groupadd --system --gid 101 nginx && \
 
 
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY default.conf /etc/nginx/sites-available/default.conf
+COPY defaultv2.conf /etc/nginx/sites-available/default.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     cp /usr/local/modsecurity/unicode.mapping /etc/nginx/ && \
     cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf && \
