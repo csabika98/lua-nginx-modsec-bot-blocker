@@ -156,6 +156,8 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/ && \
     echo "Include /etc/nginx/coreruleset/crs-setup.conf" >> /etc/nginx/modsecurity.conf && \
     echo "Include /etc/nginx/coreruleset/rules/*.conf" >> /etc/nginx/modsecurity.conf
 
+RUN cp -r /etc/nginx/coreruleset/crs-setup.conf.example /etc/nginx/coreruleset/crs-setup.conf
+
 RUN if [ "$INSTALL_BOT_BLOCKER" = "true" ]; then \
     curl -sL https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/install-ngxblocker -o /usr/local/sbin/install-ngxblocker && \
     chmod +x /usr/local/sbin/install-ngxblocker && \
