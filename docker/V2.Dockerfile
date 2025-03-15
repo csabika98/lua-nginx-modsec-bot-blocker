@@ -131,6 +131,8 @@ COPY --from=builder /usr/local /usr/local
 COPY --from=builder /etc/nginx /etc/nginx
 #COPY --from=builder /var/cache/nginx /var/cache/nginx
 COPY --from=builder /etc/nginx/coreruleset /etc/nginx/coreruleset
+COPY modsecurity.conf-recommended /usr/local/modsecurity/
+COPY unicode.mapping /usr/local/modsecurity/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
