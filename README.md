@@ -274,7 +274,6 @@ What you can customize:
 -   NGINX version
 -   LUAROCKS version
 -   LUA
--   ULTIMATE_BAD_BOT_BLOCKER (INSTALL OR NOT)
 
 
 
@@ -284,7 +283,6 @@ What you can customize:
 
 ```powershell
 docker build `
-  --build-arg ULTIMATE_BAD_BOT_BLOCKER=true `
   --build-arg VER_NGINX=1.27.4 `
   --build-arg VER_LUAROCKS=3.11.1 `
   --build-arg VER_LUA=5.1 `
@@ -296,7 +294,6 @@ docker build `
 
 ```bash
 docker build \
-  --build-arg ULTIMATE_BAD_BOT_BLOCKER=true \
   --build-arg VER_NGINX=1.27.4 \
   --build-arg VER_LUAROCKS=3.11.1 \
   --build-arg VER_LUA=5.4 \
