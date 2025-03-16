@@ -77,7 +77,7 @@ RUN cd ModSecurity && \
 # https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
 
 
-RUN curl -fsSL -o nginx-1.27.1-socket_cloexec.patch https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
+RUN curl -fsSL -o nginx-socket_cloexec.patch https://raw.githubusercontent.com/csabika98/lua-nginx-modsec-bot-blocker/refs/heads/main/nginx-socket_cloexec.patch
 
 RUN cd nginx-${VER_NGINX} && \
     patch -p1 < ../nginx-1.27.1-socket_cloexec.patch
@@ -155,8 +155,7 @@ RUN cd luarocks-${VER_LUAROCKS} && \
     make install
 
 
-ENV VER_LUA=5.1 \
-    LUA_LIB_DIR=/usr/local/share/lua/${VER_LUA} \
+ENV LUA_LIB_DIR=/usr/local/share/lua/${VER_LUA} \
     PREFIX=/usr/local
 
 ARG lua_components=" \
@@ -191,14 +190,14 @@ RUN set -eux; \
         if [ -f Makefile ]; then \
             make && \
             make install \
-                LUA_LIB_DIR="/usr/local/share/lua/5.1" \
+                LUA_LIB_DIR="/usr/local/share/lua/$VER_LUA" \
                 PREFIX="/usr/local"; \
         else \
             case "${repo}" in \
                 cloudflare/lua-resty-logger-socket) \
-                    cp -R lib/resty/logger /usr/local/share/lua/5.1/resty/ ;; \
+                    cp -R lib/resty/logger /usr/local/share/lua/$VER_LUA/resty/ ;; \
                 knyar/nginx-lua-prometheus) \
-                    cp -v *.lua /usr/local/share/lua/5.1/ ;; \
+                    cp -v *.lua /usr/local/share/lua/$VER_LUA/ ;; \
                 *) echo "Unknown component: ${repo}"; exit 1 ;; \
             esac \
         fi; \
