@@ -1,5 +1,5 @@
 # Enhanced Nginx Build with Lua Support, ModSecurity WAF, and Security Modules
-
+Latest version supported: https://nginx.org/download/nginx-1.27.4.tar.gz
 
 
 1. [News](#news)
