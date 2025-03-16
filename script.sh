@@ -103,8 +103,8 @@ trap cleanup EXIT
     cd ..
 
     cd "nginx-${VER_NGINX}"
-    curl -fsSL -o nginx-1.27.1-socket_cloexec.patch https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
-    patch -p1 < ./nginx-1.27.1-socket_cloexec.patch
+    curl -fsSL -o nginx-socket_cloexec.patch https://raw.githubusercontent.com/csabika98/lua-nginx-modsec-bot-blocker/refs/heads/main/nginx-socket_cloexec.patch
+    patch -p1 < ./nginx-socket_cloexec.patch
     export LUAJIT_LIB=/usr/local/lib
     export LUAJIT_INC=/usr/local/include/luajit-2.1
     export LD_LIBRARY_PATH="/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
