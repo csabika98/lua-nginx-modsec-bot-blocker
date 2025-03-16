@@ -87,7 +87,6 @@ trap cleanup EXIT
     download_zip "https://github.com/cloudflare/lua-upstream-cache-nginx-module/archive/refs/heads/master.zip" lua-upstream-cache-nginx-module
     git clone --depth 1 https://github.com/owasp-modsecurity/ModSecurity-nginx
     git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/owasp-modsecurity/ModSecurity
-    #git clone --depth 1 --shallow-submodules https://github.com/coreruleset/coreruleset /etc/nginx/coreruleset
 
     make -C luajit-2.1 -j$(nproc)
     make -C luajit-2.1 install PREFIX=/usr/local
@@ -104,7 +103,6 @@ trap cleanup EXIT
     cd ..
 
     cd "nginx-${VER_NGINX}"
-    echo "Downloading nginx-1.27.1-socket_cloexec.patch"
     curl -fsSL -o nginx-1.27.1-socket_cloexec.patch https://git.186526.xyz/186526/openresty/raw/branch/master/patches/nginx-1.27.1-socket_cloexec.patch
     patch -p1 < ./nginx-1.27.1-socket_cloexec.patch
     export LUAJIT_LIB=/usr/local/lib
@@ -180,7 +178,6 @@ trap cleanup EXIT
     make install
     cd ..
 
-    VER_LUA=5.1 \
     LUA_LIB_DIR=/usr/local/share/lua/${VER_LUA} \
     PREFIX=/usr/local
 
@@ -216,14 +213,14 @@ trap cleanup EXIT
             if [ -f Makefile ]; then \
                 make && \
                 make install \
-                    LUA_LIB_DIR="/usr/local/share/lua/5.1" \
+                    LUA_LIB_DIR="/usr/local/share/lua/$VER_LUA" \
                     PREFIX="/usr/local"; \
             else \
                 case "${repo}" in \
                     cloudflare/lua-resty-logger-socket) \
-                        cp -R lib/resty/logger /usr/local/share/lua/5.1/resty/ ;; \
+                        cp -R lib/resty/logger /usr/local/share/lua/$VER_LUA/resty/ ;; \
                     knyar/nginx-lua-prometheus) \
-                        cp -v *.lua /usr/local/share/lua/5.1/ ;; \
+                        cp -v *.lua /usr/local/share/lua/$VER_LUA/ ;; \
                     *) echo "Unknown component: ${repo}"; exit 1 ;; \
                 esac \
             fi; \
