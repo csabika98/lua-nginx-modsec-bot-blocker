@@ -78,12 +78,47 @@ kubectl get pods
 kubectl get svc
 
 # Check logs
-kubectl logs
+kubectl logs <pod-name>
 
 # Get the URL for the deployment
 minikube service nginx-service --url
 
 ```
+
+```
+PS C:\Users\Katana\lua-nginx-modsec-bot-blocker> kubectl logs v2-nginx-lua-666c7798f4-bx4r4
+2025/03/17 14:55:54 [notice] 1#1: ModSecurity-nginx v1.0.3 (rules loaded inline/local/remote: 0/798/0)
+2025/03/17 14:55:54 [notice] 1#1: libmodsecurity3 version 3.0.14
+2025/03/17 14:55:54 [notice] 1#1: using the "epoll" event method
+2025/03/17 14:55:54 [notice] 1#1: nginx/1.27.4
+2025/03/17 14:55:54 [notice] 1#1: built by gcc 12.2.0 (Debian 12.2.0-14)
+2025/03/17 14:55:54 [notice] 1#1: OS: Linux 5.15.167.4-microsoft-standard-WSL2
+2025/03/17 14:55:54 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576
+2025/03/17 14:55:54 [notice] 1#1: start worker processes
+2025/03/17 14:55:54 [notice] 1#1: start worker process 7
+2025/03/17 14:55:54 [notice] 1#1: start worker process 8
+2025/03/17 14:55:54 [notice] 1#1: start worker process 9
+2025/03/17 14:55:54 [notice] 1#1: start worker process 10
+2025/03/17 14:55:54 [notice] 1#1: start worker process 11
+2025/03/17 14:55:54 [notice] 1#1: start worker process 12
+2025/03/17 14:55:54 [notice] 1#1: start worker process 13
+2025/03/17 14:55:54 [notice] 1#1: start worker process 14
+2025/03/17 14:55:54 [notice] 1#1: start worker process 15
+2025/03/17 14:55:54 [notice] 1#1: start worker process 16
+2025/03/17 14:55:54 [notice] 1#1: start worker process 17
+2025/03/17 14:55:54 [notice] 1#1: start worker process 18
+2025/03/17 14:55:54 [notice] 1#1: start worker process 19
+2025/03/17 14:55:54 [notice] 1#1: start worker process 20
+2025/03/17 14:55:54 [notice] 1#1: start worker process 21
+2025/03/17 14:55:54 [notice] 1#1: start worker process 22
+10.244.0.1 - - [17/Mar/2025:14:56:00 +0000] "GET /healthz HTTP/1.1" 200 2 "-" "kube-probe/1.32"
+10.244.0.1 - - [17/Mar/2025:14:56:03 +0000] "GET /healthz HTTP/1.1" 200 2 "-" "kube-probe/1.32"
+10.244.0.1 - - [17/Mar/2025:14:56:05 +0000] "GET /healthz HTTP/1.1" 200 2 "-" "kube-probe/1.32"
+PS C:\Users\Katana\lua-nginx-modsec-bot-blocker>
+```
+![](screenshots/15.png)
+![16](screenshots/16.png)
+
 
 ## Simple docker setup
 

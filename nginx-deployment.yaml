@@ -7,7 +7,7 @@ metadata:
   labels:
     app: v2-nginx-lua
 spec:
-  replicas: 2 
+  replicas: 1
   selector:
     matchLabels:
       app: v2-nginx-lua
@@ -17,9 +17,7 @@ spec:
         app: v2-nginx-lua
     spec:
       securityContext:
-        runAsUser: 101  
-        runAsGroup: 101
-        fsGroup: 101
+        runAsUser: 0 
       containers:
       - name: v2-nginx-lua
         image: v2-nginx-lua:latest
@@ -103,6 +101,11 @@ data:
         modsecurity on;
         modsecurity_rules_file /etc/nginx/modsecurity.conf;
         
+      location /healthz {
+          return 200 'OK';
+          add_header Content-Type text/plain;
+        }
+
         location /core_example {
           content_by_lua_block {
               ngx.say("Time now: ", ngx.now(), ", Date: ", ngx.today())
