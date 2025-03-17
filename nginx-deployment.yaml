@@ -21,7 +21,7 @@ spec:
       containers:
       - name: v2-nginx-lua
         image: v2-nginx-lua:latest
-        imagePullPolicy: Never  # Add this line
+        imagePullPolicy: Never
         ports:
         - containerPort: 80
         resources:
