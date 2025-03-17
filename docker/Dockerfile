@@ -80,7 +80,7 @@ RUN cd ModSecurity && \
 RUN curl -fsSL -o nginx-socket_cloexec.patch https://raw.githubusercontent.com/csabika98/lua-nginx-modsec-bot-blocker/refs/heads/main/nginx-socket_cloexec.patch
 
 RUN cd nginx-${VER_NGINX} && \
-    patch -p1 < ../nginx-1.27.1-socket_cloexec.patch
+    patch -p1 < ../nginx-socket_cloexec.patch
     
 
 RUN cd nginx-${VER_NGINX} && \

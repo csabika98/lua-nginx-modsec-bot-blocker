@@ -1,0 +1,167 @@
+---
+# nginx-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: v2-nginx-lua
+  labels:
+    app: v2-nginx-lua
+spec:
+  replicas: 2 
+  selector:
+    matchLabels:
+      app: v2-nginx-lua
+  template:
+    metadata:
+      labels:
+        app: v2-nginx-lua
+    spec:
+      securityContext:
+        runAsUser: 101  
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+      - name: v2-nginx-lua
+        image: v2-nginx-lua:latest
+        imagePullPolicy: Never  # Add this line
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: nginx-config
+          mountPath: /etc/nginx/sites-available/default.conf
+          subPath: default.conf
+        - name: modsecurity-config
+          mountPath: /etc/nginx/modsecurity.conf
+          subPath: modsecurity.conf
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 2
+          periodSeconds: 5
+
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+          items:
+          - key: nginx.conf
+            path: nginx.conf
+          - key: default.conf
+            path: default.conf
+      - name: modsecurity-config
+        configMap:
+          name: modsecurity-config
+
+---
+# nginx-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    # Paste your nginx.conf content here
+    user  nginx;
+    worker_processes  auto;
+    
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+    
+    events {
+        worker_connections  1024;
+    }
+    
+    http {
+      include /etc/nginx/mime.types;
+      include /etc/nginx/sites-enabled/*.conf;
+    }
+
+  default.conf: |
+    lua_package_cpath "/usr/local/share/lua/5.1/?.so;;";
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+
+        modsecurity on;
+        modsecurity_rules_file /etc/nginx/modsecurity.conf;
+        
+        location /core_example {
+          content_by_lua_block {
+              ngx.say("Time now: ", ngx.now(), ", Date: ", ngx.today())
+          }
+        }
+        location /admin {
+          content_by_lua_block {
+              local auth = ngx.var.http_authorization
+              if not auth or auth ~= "Basic " .. ngx.encode_base64("admin:password") then
+                  ngx.header["WWW-Authenticate"] = 'Basic realm="Restricted"'
+                  ngx.exit(ngx.HTTP_UNAUTHORIZED)
+              end
+              ngx.say("Access granted!")
+          }
+      }
+          location /shell_demo {
+            content_by_lua_block {
+                local shell = require "resty.shell"
+                -- Run a shell command (echo), no stdin, default timeout, default max_output size
+                local ok, stdout, stderr, reason, status = shell.run("echo 'Hello, OpenResty!'")
+                if not ok then
+                    ngx.say("Command failed (", reason, "), status: ", status)
+                else
+                    ngx.say("Output: ", stdout)
+                end
+            }
+        }
+      location /say_hello_lua {
+        content_by_lua_block {
+                ngx.say("Hello from lua-nginx-module!")
+            }
+    }
+      
+    }
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: modsecurity-config
+data:
+  modsecurity.conf: |
+    # Paste your modsecurity.conf content here
+    SecRuleEngine On
+    Include /etc/nginx/coreruleset/crs-setup.conf
+    Include /etc/nginx/coreruleset/rules/*.conf
+
+---
+# nginx-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: ClusterIP  
+  selector:
+    app: v2-nginx-lua
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

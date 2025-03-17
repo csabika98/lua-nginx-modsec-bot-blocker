@@ -26,6 +26,67 @@ Latest version supported: https://nginx.org/download/nginx-1.27.4.tar.gz
 
 * Now you can try it without installing anything. Pre-built docker image released.
 
+Kubernetes support added for 
+- Horizontal Pod Autoscaler (HPA) for automatic scaling
+- Scalability
+- Dynamic Configuration
+- Rolling updates
+
+## Test it with minikube:
+
+```powershell
+1. minikube start --driver=docker
+```
+```powershell
+2. cd docker
+```
+
+```powershell
+
+>> Windows / Powershell
+
+minikube docker-env | Invoke-Expression
+
+3. docker build `
+  --build-arg VER_NGINX=1.27.4 `
+  --build-arg VER_LUAROCKS=3.11.1 `
+  --build-arg VER_LUA=5.1 `
+  -t v2-nginx-lua .
+
+>> MacOS/Linux
+
+eval $(minikube docker-env)
+
+docker build \
+  --build-arg VER_NGINX=1.27.4 \
+  --build-arg VER_LUAROCKS=3.11.1 \
+  --build-arg VER_LUA=5.1 \
+  -t v2-nginx-lua .
+
+
+```
+
+```powershell
+4. kubectl apply -f nginx-deployment.yaml
+```
+
+```powershell
+# Check pods
+kubectl get pods
+
+# Check services
+kubectl get svc
+
+# Check logs
+kubectl logs
+
+# Get the URL for the deployment
+minikube service nginx-service --url
+
+```
+
+## Simple docker setup
+
 ```
 docker run --rm -d --name test-nginx -p 5002:80 derank123/lua-ubuntu-nginx-modsec-bot-blocker:1.27.4
 ```
